@@ -6,6 +6,7 @@
     "dev": "nodemon app.js",
     "start": "node app.js",
     "seed": "node seedData.js",
+    "seed-production": "node seed-production.js",
     "test-inventory": "node test-inventory.js"
   },
   "keywords": [],

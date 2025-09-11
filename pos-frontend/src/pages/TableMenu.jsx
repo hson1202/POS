@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
-import { useParams } from "react-router-dom";
+import { useParams, useNavigate } from "react-router-dom";
 import { useSelector } from "react-redux";
-import { FaShoppingCart, FaTimes } from "react-icons/fa";
+import { FaShoppingCart, FaTimes, FaExclamationTriangle } from "react-icons/fa";
 import MenuContainer from "../components/menu/MenuContainer";
 import CustomerInfo from "../components/menu/CustomerInfo";
 import CartInfo from "../components/menu/CartInfo";
@@ -9,15 +9,40 @@ import Bill from "../components/menu/Bill";
 
 const TableMenu = () => {
   const { id } = useParams();
+  const navigate = useNavigate();
   const [showMobileCart, setShowMobileCart] = useState(false);
+  const [isValidTable, setIsValidTable] = useState(true);
   const cartData = useSelector((state) => state.cart);
   
   const totalItems = cartData.reduce((total, item) => total + item.quantity, 0);
 
   useEffect(() => {
     document.title = `Menu | Table ${id}`;
-    // Can dispatch save tableId to redux if needed
+    
+    // Validate table ID (basic validation)
+    const tableId = parseInt(id);
+    if (isNaN(tableId) || tableId < 1 || tableId > 50) {
+      setIsValidTable(false);
+    }
   }, [id]);
+
+  if (!isValidTable) {
+    return (
+      <div className="bg-[#1f1f1f] min-h-screen flex items-center justify-center">
+        <div className="text-center text-white p-8">
+          <FaExclamationTriangle className="mx-auto text-6xl text-yellow-500 mb-4" />
+          <h1 className="text-2xl font-bold mb-2">Invalid Table</h1>
+          <p className="text-gray-400 mb-6">Table {id} is not valid or does not exist.</p>
+          <button
+            onClick={() => navigate('/')}
+            className="bg-[#F6B100] text-black px-6 py-2 rounded-lg hover:bg-[#e6a100] transition-colors"
+          >
+            Go to Home
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="bg-[#1f1f1f] min-h-screen">

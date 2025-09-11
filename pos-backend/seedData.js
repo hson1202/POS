@@ -1,6 +1,7 @@
 const mongoose = require('mongoose');
 const Ingredient = require('./models/ingredientModel');
 const MenuItem = require('./models/menuItemModel');
+const Table = require('./models/tableModel');
 const config = require('./config/config');
 
 // Kết nối database
@@ -110,7 +111,19 @@ const sampleIngredients = [
     }
 ];
 
-
+// Dữ liệu mẫu cho bàn ăn
+const sampleTables = [
+    { tableNo: 1, seats: 2, status: "Available" },
+    { tableNo: 2, seats: 4, status: "Available" },
+    { tableNo: 3, seats: 6, status: "Available" },
+    { tableNo: 4, seats: 2, status: "Available" },
+    { tableNo: 5, seats: 8, status: "Available" },
+    { tableNo: 6, seats: 4, status: "Available" },
+    { tableNo: 7, seats: 2, status: "Available" },
+    { tableNo: 8, seats: 6, status: "Available" },
+    { tableNo: 9, seats: 4, status: "Available" },
+    { tableNo: 10, seats: 10, status: "Available" }
+];
 
 // Hàm tạo dữ liệu mẫu
 const seedData = async () => {
@@ -120,6 +133,7 @@ const seedData = async () => {
         // Xóa dữ liệu cũ
         await Ingredient.deleteMany({});
         await MenuItem.deleteMany({});
+        await Table.deleteMany({});
         
         console.log('Đã xóa dữ liệu cũ');
         
@@ -127,11 +141,16 @@ const seedData = async () => {
         const createdIngredients = await Ingredient.insertMany(sampleIngredients);
         console.log(`Đã tạo ${createdIngredients.length} nguyên liệu`);
         
+        // Tạo bàn ăn
+        const createdTables = await Table.insertMany(sampleTables);
+        console.log(`Đã tạo ${createdTables.length} bàn ăn`);
+        
 
         
         console.log('✅ Tạo dữ liệu mẫu thành công!');
         console.log('\n📋 Tóm tắt:');
         console.log(`- ${createdIngredients.length} nguyên liệu mẫu`);
+        console.log(`- ${createdTables.length} bàn ăn mẫu`);
         console.log('\n💡 Bây giờ bạn có thể:');
         console.log('  1. Vào trang "Quản lý menu" để thêm món ăn mới');
         console.log('  2. Vào trang "Quản lý kho" để thêm nguyên liệu mới');
