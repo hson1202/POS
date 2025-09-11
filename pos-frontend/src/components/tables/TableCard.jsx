@@ -33,7 +33,7 @@ const TableCard = ({id, name, status, initials, seats, currentOrder}) => {
     // For customers: they should access /table/:tableNo directly
     const table = { tableId: id, tableNo: name }
     dispatch(updateTable({table}))
-    navigate(`/menu`);
+    navigate(`/table/${name}`);
   };
 
   // Mutation to update table status
