@@ -20,8 +20,13 @@ app.use(cors({
         // Allow requests with no origin (like mobile apps or curl requests)
         if (!origin) return callback(null, true);
         
-        // Allow all localhost ports from 5173 to 5180
+        // Allow all localhost ports from 5173 to 5180 (development)
         if (origin.match(/^https?:\/\/localhost:(517[3-9]|5180)$/)) {
+            return callback(null, true);
+        }
+        
+        // Allow Render domains (production)
+        if (origin.match(/^https:\/\/.*\.onrender\.com$/)) {
             return callback(null, true);
         }
         
