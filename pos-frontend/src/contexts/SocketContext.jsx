@@ -16,13 +16,38 @@ export const useSocket = () => {
 export const SocketProvider = ({ children }) => {
   const [socket, setSocket] = useState(null);
   const [isConnected, setIsConnected] = useState(false);
+  const [reconnectAttempts, setReconnectAttempts] = useState(0);
   const { id: userId, role } = useSelector(state => state.user);
+  
+  const MAX_RECONNECT_ATTEMPTS = 3;
 
   useEffect(() => {
-    if (userId && role) {
+    // Prevent socket connection on customer table routes
+    if (window.location.pathname.startsWith('/table/')) {
+      console.log('🚫 Skipping socket connection for customer table route');
+      return;
+    }
+    
+    if (userId && role && reconnectAttempts < MAX_RECONNECT_ATTEMPTS) {
       // Initialize socket connection
-      const newSocket = io(import.meta.env.VITE_API_URL || 'http://localhost:3000', {
+      // Get socket URL (same as backend URL)
+      const getSocketURL = () => {
+        if (import.meta.env.VITE_BACKEND_URL) {
+          return import.meta.env.VITE_BACKEND_URL;
+        }
+        if (import.meta.env.VITE_SOCKET_URL) {
+          return import.meta.env.VITE_SOCKET_URL;
+        }
+        return 'http://localhost:3000';
+      };
+      
+      const socketURL = getSocketURL();
+      console.log('🔌 Socket connecting to:', socketURL);
+      
+      const newSocket = io(socketURL, {
         withCredentials: true,
+        transports: ['websocket', 'polling'],
+        timeout: 5000
       });
 
       newSocket.on('connect', () => {
@@ -36,6 +61,17 @@ export const SocketProvider = ({ children }) => {
       newSocket.on('disconnect', () => {
         console.log('Socket disconnected');
         setIsConnected(false);
+        setReconnectAttempts(prev => prev + 1);
+      });
+
+      newSocket.on('connect_error', (error) => {
+        console.error('Socket connection error:', error);
+        setReconnectAttempts(prev => prev + 1);
+        
+        if (reconnectAttempts >= MAX_RECONNECT_ATTEMPTS) {
+          console.log('🛑 Max reconnection attempts reached, stopping socket');
+          newSocket.close();
+        }
       });
 
       // Handle new order notifications
@@ -80,7 +116,7 @@ export const SocketProvider = ({ children }) => {
         newSocket.close();
       };
     }
-  }, [userId, role]);
+  }, [userId, role, reconnectAttempts]);
 
   // Request notification permission on mount
   useEffect(() => {

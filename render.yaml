@@ -45,12 +45,6 @@ services:
         destination: /index.html
     envVars:
       - key: VITE_BACKEND_URL
-        fromService:
-          type: web
-          name: pos-backend
-          property: host
+        value: https://pos-mq9w.onrender.com
       - key: VITE_SOCKET_URL
-        fromService:
-          type: web
-          name: pos-backend
-          property: host
+        value: https://pos-mq9w.onrender.com

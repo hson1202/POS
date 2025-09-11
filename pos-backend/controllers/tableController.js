@@ -41,12 +41,27 @@ const getTables = async (req, res, next) => {
 const updateTable = async (req, res, next) => {
   try {
     const { status, orderId, currentOrder } = req.body;
-
     const { id } = req.params;
 
-    if(!mongoose.Types.ObjectId.isValid(id)){
-        const error = createHttpError(404, "Invalid id!");
+    let tableId = id;
+    
+    // If id is not a valid ObjectId, try to find by tableNo
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      const tableNo = parseInt(id);
+      if (isNaN(tableNo)) {
+        const error = createHttpError(404, "Invalid table ID or table number!");
         return next(error);
+      }
+      
+      // Find table by tableNo
+      const tableByNo = await Table.findOne({ tableNo });
+      if (!tableByNo) {
+        const error = createHttpError(404, `Table ${tableNo} not found!`);
+        return next(error);
+      }
+      
+      tableId = tableByNo._id;
+      console.log(`🔄 Converted tableNo ${tableNo} to ObjectId ${tableId}`);
     }
 
     // If currentOrder is provided (for booking), create an order first
@@ -67,7 +82,7 @@ const updateTable = async (req, res, next) => {
     }
 
     const table = await Table.findByIdAndUpdate(
-        id,
+        tableId,
       { status, currentOrder: orderIdToUse },
       { new: true }
     ).populate({

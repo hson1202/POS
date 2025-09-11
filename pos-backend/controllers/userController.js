@@ -61,12 +61,16 @@ const login = async (req, res, next) => {
             expiresIn : '1d'
         });
 
-        res.cookie('accessToken', accessToken, {
-            maxAge: 1000 * 60 * 60 *24 * 30,
+        const cookieOptions = {
+            maxAge: 1000 * 60 * 60 * 24 * 30, // 30 days
             httpOnly: true,
-            sameSite: 'none',
-            secure: true
-        })
+            secure: process.env.NODE_ENV === 'production', // Secure in production
+            sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax', // Cross-site in production
+            path: '/'
+        };
+        
+        console.log('🍪 Setting cookie with options:', cookieOptions);
+        res.cookie('accessToken', accessToken, cookieOptions)
 
         res.status(200).json({success: true, message: "User login successfully!", 
             data: {
@@ -95,11 +99,26 @@ const getUserData = async (req, res, next) => {
 
 const logout = async (req, res, next) => {
     try {
+        console.log('🚪 Logout request:', {
+            user: req.user?._id,
+            hasAccessToken: !!req.cookies.accessToken,
+            origin: req.get('origin'),
+            userAgent: req.get('user-agent')
+        });
         
-        res.clearCookie('accessToken');
+        // Clear cookie with explicit options for production
+        res.clearCookie('accessToken', {
+            httpOnly: true,
+            secure: process.env.NODE_ENV === 'production', // Secure in production
+            sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax', // Cross-site in production
+            path: '/'
+        });
+        
+        console.log('✅ Logout successful, cookie cleared');
         res.status(200).json({success: true, message: "User logout successfully!"});
 
     } catch (error) {
+        console.error('❌ Logout error:', error);
         next(error);
     }
 }

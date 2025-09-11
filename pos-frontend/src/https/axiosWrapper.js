@@ -37,7 +37,51 @@ export const axiosWrapper = axios.create({
   baseURL: backendURL,
   withCredentials: true,
   headers: { ...defaultHeader },
+  timeout: 10000, // 10 second timeout
 });
+
+// Add request interceptor for debugging
+axiosWrapper.interceptors.request.use(
+  (config) => {
+    console.log('🚀 API Request:', {
+      method: config.method?.toUpperCase(),
+      url: config.url,
+      baseURL: config.baseURL,
+      fullURL: `${config.baseURL}${config.url}`,
+      withCredentials: config.withCredentials,
+      headers: config.headers
+    });
+    return config;
+  },
+  (error) => {
+    console.error('❌ Request Error:', error);
+    return Promise.reject(error);
+  }
+);
+
+// Add response interceptor for debugging
+axiosWrapper.interceptors.response.use(
+  (response) => {
+    console.log('✅ API Response:', {
+      status: response.status,
+      statusText: response.statusText,
+      url: response.config.url,
+      data: response.data
+    });
+    return response;
+  },
+  (error) => {
+    console.error('❌ API Error:', {
+      message: error.message,
+      status: error.response?.status,
+      statusText: error.response?.statusText,
+      url: error.config?.url,
+      baseURL: error.config?.baseURL,
+      data: error.response?.data
+    });
+    return Promise.reject(error);
+  }
+);
 
 // Axios instance cho khách vãng lai (không gửi credentials)
 export const axiosGuest = axios.create({

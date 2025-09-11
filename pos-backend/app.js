@@ -17,20 +17,28 @@ connectDB();
 app.use(cors({
     credentials: true,
     origin: function (origin, callback) {
+        console.log('🌍 CORS Check:', { origin, timestamp: new Date().toISOString() });
+        
         // Allow requests with no origin (like mobile apps or curl requests)
-        if (!origin) return callback(null, true);
+        if (!origin) {
+            console.log('✅ CORS: No origin - allowing');
+            return callback(null, true);
+        }
         
         // Allow all localhost ports from 5173 to 5180 (development)
         if (origin.match(/^https?:\/\/localhost:(517[3-9]|5180)$/)) {
+            console.log('✅ CORS: Localhost allowed');
             return callback(null, true);
         }
         
         // Allow Render domains (production)
         if (origin.match(/^https:\/\/.*\.onrender\.com$/)) {
+            console.log('✅ CORS: Render domain allowed');
             return callback(null, true);
         }
         
-        callback(new Error('Not allowed by CORS'));
+        console.log('❌ CORS: Origin not allowed:', origin);
+        callback(new Error(`CORS: Origin ${origin} not allowed`));
     }
 }))
 app.use(express.json({ limit: '50mb' })); // parse incoming request in json format with increased limit
@@ -41,6 +49,24 @@ app.use(cookieParser())
 // Root Endpoint
 app.get("/", (req,res) => {
     res.json({message : "Hello from POS Server!"});
+})
+
+// Health check endpoint
+app.get("/health", (req, res) => {
+    res.json({
+        status: "OK",
+        timestamp: new Date().toISOString(),
+        environment: process.env.NODE_ENV,
+        origin: req.get('origin'),
+        host: req.get('host'),
+        userAgent: req.get('user-agent'),
+        cors: {
+            allowedOrigins: [
+                'localhost:5173-5180',
+                '*.onrender.com'
+            ]
+        }
+    });
 })
 
 // Setup endpoint (for production initialization)

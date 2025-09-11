@@ -7,6 +7,8 @@ import {
 } from "react-router-dom";
 import { Home, Auth, Orders, Tables, Menu, Dashboard, TableMenu, OrderTracking, Inventory, MenuManagement, More, EmployeeManagement, OrderHistory, PaymentHistory, DishDeployment } from "./pages";
 import KitchenDisplay from "./pages/KitchenDisplay";
+import Debug from "./pages/Debug";
+import OrderFlowTest from "./pages/OrderFlowTest";
 import Header from "./components/shared/Header";
 import { useSelector } from "react-redux";
 import useLoadData from "./hooks/useLoadData";
@@ -74,6 +76,8 @@ function Layout() {
         <Route path="/table/:id" element={<TableMenu />} />
         <Route path="/order" element={<OrderTracking />} />
         <Route path="/order/:orderId" element={<OrderTracking />} />
+        <Route path="/debug" element={<Debug />} />
+        <Route path="/test-order-flow" element={<OrderFlowTest />} />
         <Route
           path="/inventory"
           element={

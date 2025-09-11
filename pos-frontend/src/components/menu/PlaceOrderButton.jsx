@@ -2,17 +2,21 @@ import React from "react";
 import { useSelector, useDispatch } from "react-redux";
 import { useMutation } from "@tanstack/react-query";
 import { enqueueSnackbar } from "notistack";
-import { addOrderGuest, updateTable } from "../../https/index";
+import { addOrder, addOrderGuest, updateTable } from "../../https/index";
 import { removeAllItems } from "../../redux/slices/cartSlice";
 import { removeCustomer } from "../../redux/slices/customerSlice";
 import { useParams } from "react-router-dom";
 
 const PlaceOrderButton = ({ className = "", disabled = false }) => {
   const dispatch = useDispatch();
-  const { id: tableId } = useParams();
+  const { id: tableId } = useParams(); // From URL params (customer route)
   
   const customerData = useSelector((state) => state.customer);
   const cartData = useSelector((state) => state.cart);
+  
+  // Determine if this is admin order or customer order
+  const isCustomerOrder = !!tableId; // Customer routes have tableId in URL
+  const isAdminOrder = !tableId && customerData.table?.tableId; // Admin has table from Redux
   
   const totalItems = cartData.reduce((total, item) => total + item.quantity, 0);
   const totalPrice = cartData.reduce((total, item) => total + item.price, 0);
@@ -99,8 +103,8 @@ const PlaceOrderButton = ({ className = "", disabled = false }) => {
         price: item.pricePerQuantity,
         totalPrice: item.price
       })),
-      // Only include table if it's a valid table ID (not guest order)
-      ...(tableId && tableId !== "undefined" && tableId !== undefined && { table: tableId }),
+      // Include table ID based on order type
+      table: isCustomerOrder ? tableId : (isAdminOrder ? customerData.table.tableId : null),
     };
     
     orderMutation.mutate(orderData);
@@ -108,15 +112,28 @@ const PlaceOrderButton = ({ className = "", disabled = false }) => {
 
   const orderMutation = useMutation({
     mutationFn: (reqData) => {
-      return tableId ? addOrderGuest(reqData) : addOrderGuest(reqData);
+      console.log('🍽️ Placing order:', {
+        type: isCustomerOrder ? 'Customer' : (isAdminOrder ? 'Admin' : 'Guest'),
+        tableId: reqData.table,
+        orderData: reqData
+      });
+      
+      // Use appropriate API based on order type
+      if (isCustomerOrder || isAdminOrder) {
+        return isCustomerOrder ? addOrderGuest(reqData) : addOrder(reqData);
+      } else {
+        // Guest order (walk-in, no table)
+        return addOrderGuest(reqData);
+      }
     },
     onSuccess: (resData) => {
       const { data } = resData.data;
 
-      // Update Table if needed (only for specific table orders, not guest orders)
-      if (tableId && tableId !== "undefined" && tableId !== undefined && tableId !== "guest" && tableId !== "null") {
+      // Update Table if needed (for both customer and admin orders)
+      const finalTableId = isCustomerOrder ? tableId : (isAdminOrder ? customerData.table.tableId : null);
+      if (finalTableId && finalTableId !== "undefined" && finalTableId !== "guest") {
         try {
-          updateTable(tableId, { status: "occupied" });
+          updateTable({ tableId: finalTableId, status: "occupied" });
         } catch (error) {
           console.log("Table update failed:", error);
         }
@@ -124,7 +141,7 @@ const PlaceOrderButton = ({ className = "", disabled = false }) => {
         // Auto-print receipt for table orders
         autoPrintReceipt({
           _id: data._id,
-          tableNumber: tableId,
+          tableNumber: finalTableId,
           customerDetails: customerData,
           items: cartData,
           totalAmount: totalPrice
