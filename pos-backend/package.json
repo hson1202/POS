@@ -9,7 +9,8 @@
     "seed-production": "node seed-production.js",
     "test-inventory": "node test-inventory.js",
     "test-production": "node test-production.js",
-    "test-comprehensive": "node test-comprehensive.js"
+    "test-comprehensive": "node test-comprehensive.js",
+    "test-table-setup": "node test-table-setup.js"
   },
   "keywords": [],
   "author": "",

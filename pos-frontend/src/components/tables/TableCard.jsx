@@ -104,10 +104,11 @@ const TableCard = ({id, name, status, initials, seats, currentOrder}) => {
     deleteTableMutation.mutate(id);
   };
 
+  const FRONTEND_BASE_URL = import.meta.env.VITE_PUBLIC_SITE_URL || window.location.origin;
+
   const generateTableMenuLink = () => {
-    // Create the full URL for customers to access the table menu
-    const baseUrl = window.location.origin;
-    return `${baseUrl}/table/${name}`;
+    // Always generate link pointing to static frontend domain
+    return `${FRONTEND_BASE_URL}/table/${encodeURIComponent(name)}`;
   };
 
   const copyTableLink = () => {

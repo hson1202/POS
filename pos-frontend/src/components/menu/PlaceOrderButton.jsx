@@ -21,13 +21,23 @@ const PlaceOrderButton = ({ className = "", disabled = false }) => {
   const totalItems = cartData.reduce((total, item) => total + item.quantity, 0);
   const totalPrice = cartData.reduce((total, item) => total + item.price, 0);
 
+  // Compute backend table reference (ObjectId for admin, numeric for customer)
+  const backendTableRef = isCustomerOrder
+    ? tableId
+    : (isAdminOrder ? customerData.table.tableId : null);
+
+  // Compute display-friendly table number (numeric tableNo if available)
+  const displayTableNo = isCustomerOrder
+    ? tableId
+    : (isAdminOrder ? customerData.table.tableNo : null);
+
   // Auto-print function for table orders
   const autoPrintReceipt = (orderData) => {
     // Create print content
     const printContent = `
       <html>
         <head>
-          <title>Order Receipt - Table ${orderData.tableNumber || tableId}</title>
+          <title>Order Receipt - Table ${orderData.tableNumber || displayTableNo || tableId}</title>
           <style>
             body { font-family: Arial, sans-serif; width: 80mm; margin: 0 auto; padding: 10px; }
             h2 { text-align: center; margin: 10px 0; }
@@ -39,7 +49,7 @@ const PlaceOrderButton = ({ className = "", disabled = false }) => {
         </head>
         <body>
           <h2>ORDER RECEIPT</h2>
-          <p><strong>Table:</strong> ${orderData.tableNumber || tableId}</p>
+          <p><strong>Table:</strong> ${orderData.tableNumber || displayTableNo || tableId}</p>
           <p><strong>Customer:</strong> ${orderData.customerDetails?.name || 'Guest'}</p>
           <p><strong>Date:</strong> ${new Date().toLocaleString('vi-VN')}</p>
           <div class="divider"></div>
@@ -103,8 +113,8 @@ const PlaceOrderButton = ({ className = "", disabled = false }) => {
         price: item.pricePerQuantity,
         totalPrice: item.price
       })),
-      // Include table ID based on order type
-      table: isCustomerOrder ? tableId : (isAdminOrder ? customerData.table.tableId : null),
+      // Include table ID based on order type (backend reference)
+      table: backendTableRef,
     };
     
     orderMutation.mutate(orderData);
@@ -130,10 +140,10 @@ const PlaceOrderButton = ({ className = "", disabled = false }) => {
       const { data } = resData.data;
 
       // Update Table if needed (for both customer and admin orders)
-      const finalTableId = isCustomerOrder ? tableId : (isAdminOrder ? customerData.table.tableId : null);
+      const finalTableId = backendTableRef;
       if (finalTableId && finalTableId !== "undefined" && finalTableId !== "guest") {
         try {
-          updateTable({ tableId: finalTableId, status: "occupied" });
+          updateTable({ tableId: finalTableId, status: "Occupied" });
         } catch (error) {
           console.log("Table update failed:", error);
         }
@@ -141,7 +151,7 @@ const PlaceOrderButton = ({ className = "", disabled = false }) => {
         // Auto-print receipt for table orders
         autoPrintReceipt({
           _id: data._id,
-          tableNumber: finalTableId,
+          tableNumber: displayTableNo || tableId,
           customerDetails: customerData,
           items: cartData,
           totalAmount: totalPrice

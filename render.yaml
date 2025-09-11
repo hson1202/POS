@@ -44,6 +44,8 @@ services:
         source: /*
         destination: /index.html
     envVars:
+      - key: VITE_PUBLIC_SITE_URL
+        value: https://pos-fe-ihui.onrender.com
       - key: VITE_BACKEND_URL
         value: https://pos-mq9w.onrender.com
       - key: VITE_SOCKET_URL

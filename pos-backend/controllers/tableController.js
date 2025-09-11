@@ -38,6 +38,46 @@ const getTables = async (req, res, next) => {
   }
 };
 
+const getTableById = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+
+    let tableId = id;
+    
+    // If id is not a valid ObjectId, try to find by tableNo
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      const tableNo = parseInt(id);
+      if (isNaN(tableNo)) {
+        const error = createHttpError(404, "Invalid table ID or table number!");
+        return next(error);
+      }
+      
+      // Find table by tableNo
+      const tableByNo = await Table.findOne({ tableNo });
+      if (!tableByNo) {
+        const error = createHttpError(404, `Table ${tableNo} not found!`);
+        return next(error);
+      }
+      
+      tableId = tableByNo._id;
+    }
+
+    const table = await Table.findById(tableId).populate({
+      path: "currentOrder",
+      select: "customerDetails items bills orderStatus orderDate notes bookingTime"
+    });
+
+    if (!table) {
+      const error = createHttpError(404, "Table not found!");
+      return next(error);
+    }
+
+    res.status(200).json({ success: true, data: table });
+  } catch (error) {
+    next(error);
+  }
+};
+
 const updateTable = async (req, res, next) => {
   try {
     const { status, orderId, currentOrder } = req.body;
@@ -73,13 +113,14 @@ const updateTable = async (req, res, next) => {
         orderStatus: "booked",
         bills: { total: 0, tax: 0, totalWithTax: 0 },
         items: [],
-        table: id,
+        table: tableId, // <-- dùng ObjectId
         notes: currentOrder.notes,
         bookingTime: currentOrder.bookingTime
       });
       const savedOrder = await newOrder.save();
       orderIdToUse = savedOrder._id;
     }
+    
 
     const table = await Table.findByIdAndUpdate(
         tableId,
@@ -152,4 +193,4 @@ const deleteTable = async (req, res, next) => {
   }
 };
 
-module.exports = { addTable, getTables, updateTable, deleteTable };
+module.exports = { addTable, getTables, getTableById, updateTable, deleteTable };

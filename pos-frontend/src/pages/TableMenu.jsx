@@ -7,12 +7,15 @@ import CustomerInfo from "../components/menu/CustomerInfo";
 import CartInfo from "../components/menu/CartInfo";
 import Bill from "../components/menu/Bill";
 import { axiosWrapper } from "../https/axiosWrapper";
+import { getTableById } from "../https";
 
 const TableMenu = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const [showMobileCart, setShowMobileCart] = useState(false);
-  const [isValidTable, setIsValidTable] = useState(true);
+  const [isValidTable, setIsValidTable] = useState(null); // null = checking, true = valid, false = invalid
+  const [tableData, setTableData] = useState(null);
+  const [isCheckingTable, setIsCheckingTable] = useState(true);
   const [isSettingUp, setIsSettingUp] = useState(false);
   const [setupError, setSetupError] = useState(null);
   const cartData = useSelector((state) => state.cart);
@@ -40,33 +43,89 @@ const TableMenu = () => {
     }
   };
 
+  // Check table existence when component mounts or id changes
   useEffect(() => {
-    document.title = `Menu | Table ${id}`;
-    
-    // Debug: Log environment info
-    console.log('🔍 Environment Debug:', {
-      isDev: import.meta.env.DEV,
-      isProd: import.meta.env.PROD,
-      backendUrl: import.meta.env.VITE_BACKEND_URL,
-      mode: import.meta.env.MODE,
-      baseUrl: import.meta.env.BASE_URL
-    });
-    
-    // Validate table ID (basic validation)
-    const tableId = parseInt(id);
-    if (isNaN(tableId) || tableId < 1 || tableId > 50) {
-      setIsValidTable(false);
-    }
+    const checkTableExists = async () => {
+      try {
+        document.title = `Menu | Table ${id}`;
+        setIsCheckingTable(true);
+        setSetupError(null);
+        
+        // Debug: Log environment info
+        console.log('🔍 Environment Debug:', {
+          isDev: import.meta.env.DEV,
+          isProd: import.meta.env.PROD,
+          backendUrl: import.meta.env.VITE_BACKEND_URL,
+          mode: import.meta.env.MODE,
+          baseUrl: import.meta.env.BASE_URL,
+          tableId: id
+        });
+        
+        // Basic validation first
+        const tableId = parseInt(id);
+        if (isNaN(tableId) || tableId < 1) {
+          console.log('❌ Invalid table ID format:', id);
+          setIsValidTable(false);
+          setIsCheckingTable(false);
+          return;
+        }
+
+        console.log('🔍 Checking table existence for ID:', tableId);
+        
+        // Check if table exists in backend
+        const response = await getTableById(tableId);
+        
+        if (response.data.success) {
+          console.log('✅ Table found:', response.data.data);
+          setTableData(response.data.data);
+          setIsValidTable(true);
+        } else {
+          console.log('❌ Table not found in response');
+          setIsValidTable(false);
+        }
+        
+      } catch (error) {
+        console.log('❌ Error checking table:', error);
+        
+        if (error.response?.status === 404) {
+          console.log('📋 Table not found - needs setup');
+          setIsValidTable(false);
+          setSetupError(`Table ${id} not found in database`);
+        } else {
+          console.log('🔥 Network or server error:', error.message);
+          setSetupError(`Failed to check table: ${error.message}`);
+          setIsValidTable(false);
+        }
+      } finally {
+        setIsCheckingTable(false);
+      }
+    };
+
+    checkTableExists();
   }, [id]);
 
-  if (!isValidTable) {
+  // Show loading while checking table
+  if (isCheckingTable) {
+    return (
+      <div className="bg-[#1f1f1f] min-h-screen flex items-center justify-center">
+        <div className="text-center text-white p-8">
+          <FaCog className="animate-spin mx-auto text-6xl text-blue-500 mb-4" />
+          <h1 className="text-2xl font-bold mb-2">Checking Table...</h1>
+          <p className="text-gray-400">Verifying table {id} existence...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Show error/setup screen if table not found
+  if (isValidTable === false) {
     return (
       <div className="bg-[#1f1f1f] min-h-screen flex items-center justify-center">
         <div className="text-center text-white p-8 max-w-md">
           <FaExclamationTriangle className="mx-auto text-6xl text-yellow-500 mb-4" />
           <h1 className="text-2xl font-bold mb-2">Table Not Found</h1>
           <p className="text-gray-400 mb-6">
-            Table {id} might not exist in the database yet.
+            Table {id} does not exist in the database.
           </p>
           
           {setupError && (
@@ -110,9 +169,27 @@ const TableMenu = () => {
     <div className="bg-[#1f1f1f] min-h-screen">
       {/* Header */}
       <div className="bg-[#1a1a1a] px-4 py-3 border-b border-[#2a2a2a] sticky top-0 z-40">
-        <h1 className="text-[#f5f5f5] text-xl font-bold text-center">
-          Table {id} Menu
-        </h1>
+        <div className="flex items-center justify-between">
+          <h1 className="text-[#f5f5f5] text-xl font-bold">
+            Table {id} Menu
+          </h1>
+          {tableData && (
+            <div className="flex items-center gap-3">
+              <span className={`px-3 py-1 rounded-full text-sm font-medium ${
+                tableData.status === 'Available' ? 'bg-green-600/20 text-green-400' :
+                tableData.status === 'Booked' ? 'bg-blue-600/20 text-blue-400' :
+                'bg-yellow-600/20 text-yellow-400'
+              }`}>
+                {tableData.status}
+              </span>
+              {tableData.seats && (
+                <span className="text-[#ababab] text-sm">
+                  {tableData.seats} seats
+                </span>
+              )}
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Main Content */}
