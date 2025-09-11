@@ -43,6 +43,11 @@ app.get("/", (req,res) => {
     res.json({message : "Hello from POS Server!"});
 })
 
+// Setup endpoint (for production initialization)
+const { setupTables, getSetupStatus } = require("./setup");
+app.post("/api/setup/tables", setupTables);
+app.get("/api/setup/status", getSetupStatus);
+
 // Other Endpoints
 app.use("/api/user", require("./routes/userRoute"));
 app.use("/api/order", require("./routes/orderRoute"));

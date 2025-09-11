@@ -1,23 +1,56 @@
 import React, { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useSelector } from "react-redux";
-import { FaShoppingCart, FaTimes, FaExclamationTriangle } from "react-icons/fa";
+import { FaShoppingCart, FaTimes, FaExclamationTriangle, FaCog } from "react-icons/fa";
 import MenuContainer from "../components/menu/MenuContainer";
 import CustomerInfo from "../components/menu/CustomerInfo";
 import CartInfo from "../components/menu/CartInfo";
 import Bill from "../components/menu/Bill";
+import { axiosWrapper } from "../https/axiosWrapper";
 
 const TableMenu = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const [showMobileCart, setShowMobileCart] = useState(false);
   const [isValidTable, setIsValidTable] = useState(true);
+  const [isSettingUp, setIsSettingUp] = useState(false);
+  const [setupError, setSetupError] = useState(null);
   const cartData = useSelector((state) => state.cart);
   
   const totalItems = cartData.reduce((total, item) => total + item.quantity, 0);
 
+  const setupTables = async () => {
+    try {
+      setIsSettingUp(true);
+      setSetupError(null);
+      
+      console.log('🔧 Setting up tables...');
+      const response = await axiosWrapper.post('/api/setup/tables');
+      
+      if (response.data.success) {
+        console.log('✅ Tables setup completed:', response.data);
+        // Reload page sau khi setup xong
+        window.location.reload();
+      }
+    } catch (error) {
+      console.error('❌ Setup failed:', error);
+      setSetupError(error.response?.data?.message || 'Setup failed');
+    } finally {
+      setIsSettingUp(false);
+    }
+  };
+
   useEffect(() => {
     document.title = `Menu | Table ${id}`;
+    
+    // Debug: Log environment info
+    console.log('🔍 Environment Debug:', {
+      isDev: import.meta.env.DEV,
+      isProd: import.meta.env.PROD,
+      backendUrl: import.meta.env.VITE_BACKEND_URL,
+      mode: import.meta.env.MODE,
+      baseUrl: import.meta.env.BASE_URL
+    });
     
     // Validate table ID (basic validation)
     const tableId = parseInt(id);
@@ -29,16 +62,45 @@ const TableMenu = () => {
   if (!isValidTable) {
     return (
       <div className="bg-[#1f1f1f] min-h-screen flex items-center justify-center">
-        <div className="text-center text-white p-8">
+        <div className="text-center text-white p-8 max-w-md">
           <FaExclamationTriangle className="mx-auto text-6xl text-yellow-500 mb-4" />
-          <h1 className="text-2xl font-bold mb-2">Invalid Table</h1>
-          <p className="text-gray-400 mb-6">Table {id} is not valid or does not exist.</p>
-          <button
-            onClick={() => navigate('/')}
-            className="bg-[#F6B100] text-black px-6 py-2 rounded-lg hover:bg-[#e6a100] transition-colors"
-          >
-            Go to Home
-          </button>
+          <h1 className="text-2xl font-bold mb-2">Table Not Found</h1>
+          <p className="text-gray-400 mb-6">
+            Table {id} might not exist in the database yet.
+          </p>
+          
+          {setupError && (
+            <div className="bg-red-600/20 border border-red-600 rounded-lg p-3 mb-4">
+              <p className="text-red-400 text-sm">{setupError}</p>
+            </div>
+          )}
+          
+          <div className="space-y-3">
+            <button
+              onClick={setupTables}
+              disabled={isSettingUp}
+              className="w-full bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
+            >
+              {isSettingUp ? (
+                <>
+                  <FaCog className="animate-spin mr-2" />
+                  Setting up tables...
+                </>
+              ) : (
+                <>
+                  <FaCog className="mr-2" />
+                  Setup Tables
+                </>
+              )}
+            </button>
+            
+            <button
+              onClick={() => navigate('/')}
+              className="w-full bg-[#F6B100] text-black px-6 py-2 rounded-lg hover:bg-[#e6a100] transition-colors"
+            >
+              Go to Home
+            </button>
+          </div>
         </div>
       </div>
     );

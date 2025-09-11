@@ -25,6 +25,14 @@ const getBackendURL = () => {
 
 const backendURL = getBackendURL();
 
+// Debug log
+console.log('🔗 Axios Configuration:', {
+  backendURL,
+  envVITE_BACKEND_URL: import.meta.env.VITE_BACKEND_URL,
+  envDEV: import.meta.env.DEV,
+  envPROD: import.meta.env.PROD
+});
+
 export const axiosWrapper = axios.create({
   baseURL: backendURL,
   withCredentials: true,

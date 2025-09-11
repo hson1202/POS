@@ -28,6 +28,8 @@ const TableCard = ({id, name, status, initials, seats, currentOrder}) => {
       return;
     }
 
+    // For admin: go to menu to create order
+    // For customers: they should access /table/:tableNo directly
     const table = { tableId: id, tableNo: name }
     dispatch(updateTable({table}))
     navigate(`/menu`);
@@ -123,20 +125,35 @@ const TableCard = ({id, name, status, initials, seats, currentOrder}) => {
           </div>
         )}
         
-        {/* Book Table Button - only show when table is Available */}
-        {status === "Available" && (
+        {/* Action buttons */}
+        <div className="absolute bottom-2 right-2 flex gap-2">
+          {status === "Available" && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                setShowBookingModal(true);
+              }}
+              className="bg-[#f6b100] text-[#1f1f1f] px-3 py-1 rounded-lg hover:bg-[#e6a100] transition-colors text-sm font-semibold flex items-center gap-1"
+              title="Book this table"
+            >
+              <FaUserPlus size={12} />
+              Book
+            </button>
+          )}
+          
+          {/* Customer Menu button - always available for quick access */}
           <button
             onClick={(e) => {
               e.stopPropagation();
-              setShowBookingModal(true);
+              navigate(`/table/${name}`);
             }}
-            className="absolute bottom-2 right-2 bg-[#f6b100] text-[#1f1f1f] px-3 py-1 rounded-lg hover:bg-[#e6a100] transition-colors text-sm font-semibold flex items-center gap-1"
-            title="Book this table"
+            className="bg-blue-600 text-white px-3 py-1 rounded-lg hover:bg-blue-700 transition-colors text-sm font-semibold flex items-center gap-1"
+            title="Customer menu for this table"
           >
-            <FaUserPlus size={12} />
-            Book
+            <FaUtensils size={12} />
+            Menu
           </button>
-        )}
+        </div>
       </div>
 
       {/* Book Table Modal */}
