@@ -4,7 +4,7 @@ const mongoose = require("mongoose")
 
 const addTable = async (req, res, next) => {
   try {
-    const { tableNo, seats } = req.body;
+    const { tableNo, seats = 4 } = req.body; // Default 4 seats nếu không có
     if (!tableNo) {
       const error = createHttpError(400, "Please provide table No!");
       return next(error);
@@ -102,4 +102,54 @@ const updateTable = async (req, res, next) => {
   }
 };
 
-module.exports = { addTable, getTables, updateTable };
+const deleteTable = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+
+    let tableId = id;
+    
+    // If id is not a valid ObjectId, try to find by tableNo
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      const tableNo = parseInt(id);
+      if (isNaN(tableNo)) {
+        const error = createHttpError(404, "Invalid table ID or table number!");
+        return next(error);
+      }
+      
+      // Find table by tableNo
+      const tableByNo = await Table.findOne({ tableNo });
+      if (!tableByNo) {
+        const error = createHttpError(404, `Table ${tableNo} not found!`);
+        return next(error);
+      }
+      
+      tableId = tableByNo._id;
+    }
+
+    // Check if table has active orders
+    const table = await Table.findById(tableId).populate('currentOrder');
+    if (!table) {
+      const error = createHttpError(404, "Table not found!");
+      return next(error);
+    }
+
+    // Check if table is currently occupied or has active orders
+    if (table.status === "Occupied" || (table.currentOrder && table.currentOrder.orderStatus !== "completed")) {
+      const error = createHttpError(400, "Cannot delete table with active orders!");
+      return next(error);
+    }
+
+    // Delete the table
+    await Table.findByIdAndDelete(tableId);
+
+    res.status(200).json({
+      success: true, 
+      message: `Table ${table.tableNo} deleted successfully!`
+    });
+
+  } catch (error) {
+    next(error);
+  }
+};
+
+module.exports = { addTable, getTables, updateTable, deleteTable };

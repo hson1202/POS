@@ -12,7 +12,6 @@ const Tables = () => {
   const [showAddModal, setShowAddModal] = useState(false);
   const [newTable, setNewTable] = useState({
     tableNo: "",
-    seats: 4,
     status: "Available"
   });
   const queryClient = useQueryClient();
@@ -36,7 +35,7 @@ const Tables = () => {
       enqueueSnackbar("Table created successfully!", { variant: "success" });
       queryClient.invalidateQueries(["tables"]);
       setShowAddModal(false);
-      setNewTable({ tableNo: "", seats: 4, status: "Available" });
+      setNewTable({ tableNo: "", status: "Available" });
     },
     onError: (error) => {
       console.log("Add Table Error:", error);
@@ -161,21 +160,6 @@ const Tables = () => {
                 />
               </div>
               
-              <div>
-                <label className="block text-[#ababab] mb-2 text-sm font-medium">Number of Seats</label>
-                <select
-                  value={newTable.seats}
-                  onChange={(e) => setNewTable({...newTable, seats: parseInt(e.target.value)})}
-                  className="w-full bg-[#262626] text-[#f5f5f5] rounded-lg p-3 focus:outline-none focus:ring-2 focus:ring-[#f6b100]"
-                >
-                  <option value={2}>2 Seats</option>
-                  <option value={4}>4 Seats</option>
-                  <option value={6}>6 Seats</option>
-                  <option value={8}>8 Seats</option>
-                  <option value={10}>10 Seats</option>
-                  <option value={12}>12 Seats</option>
-                </select>
-              </div>
               
               <div>
                 <label className="block text-[#ababab] mb-2 text-sm font-medium">Initial Status</label>

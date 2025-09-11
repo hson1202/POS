@@ -8,7 +8,7 @@ const tableSchema = new mongoose.Schema({
     },
     seats: { 
         type: Number,
-        required: true
+        default: 4  // Default 4 seats, không còn required
     },
     currentOrder: {type: mongoose.Schema.Types.ObjectId, ref: "Order"}
 });

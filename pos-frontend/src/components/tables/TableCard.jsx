@@ -3,14 +3,15 @@ import { useNavigate } from "react-router-dom";
 import { getAvatarName, getBgColor } from "../../utils"
 import { useDispatch } from "react-redux";
 import { updateTable } from "../../redux/slices/customerSlice";
-import { FaLongArrowAltRight, FaTimes, FaUtensils, FaClock, FaCheck, FaUserPlus } from "react-icons/fa";
+import { FaLongArrowAltRight, FaTimes, FaUtensils, FaClock, FaCheck, FaUserPlus, FaTrash, FaExternalLinkAlt } from "react-icons/fa";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { updateTable as updateTableAPI } from "../../https";
+import { updateTable as updateTableAPI, deleteTable as deleteTableAPI } from "../../https";
 import { enqueueSnackbar } from "notistack";
 
 const TableCard = ({id, name, status, initials, seats, currentOrder}) => {
   const [showDetails, setShowDetails] = useState(false);
   const [showBookingModal, setShowBookingModal] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [bookingData, setBookingData] = useState({
     customerName: "",
     customerPhone: "",
@@ -51,6 +52,21 @@ const TableCard = ({id, name, status, initials, seats, currentOrder}) => {
     },
   });
 
+  // Mutation to delete table
+  const deleteTableMutation = useMutation({
+    mutationFn: (tableId) => deleteTableAPI(tableId),
+    onSuccess: () => {
+      enqueueSnackbar("Table deleted successfully!", { variant: "success" });
+      queryClient.invalidateQueries(["tables"]);
+      setShowDeleteModal(false);
+    },
+    onError: (error) => {
+      console.log("Delete Table Error:", error);
+      const errorMessage = error.response?.data?.message || "Failed to delete table!";
+      enqueueSnackbar(errorMessage, { variant: "error" });
+    },
+  });
+
   const handleStatusUpdate = (newStatus) => {
     updateTableMutation.mutate({
       tableId: id,
@@ -81,6 +97,25 @@ const TableCard = ({id, name, status, initials, seats, currentOrder}) => {
         notes: bookingData.notes,
         bookingTime: new Date().toISOString()
       }
+    });
+  };
+
+  const handleDeleteTable = () => {
+    deleteTableMutation.mutate(id);
+  };
+
+  const generateTableMenuLink = () => {
+    // Create the full URL for customers to access the table menu
+    const baseUrl = window.location.origin;
+    return `${baseUrl}/table/${name}`;
+  };
+
+  const copyTableLink = () => {
+    const link = generateTableMenuLink();
+    navigator.clipboard.writeText(link).then(() => {
+      enqueueSnackbar("Table link copied to clipboard!", { variant: "success" });
+    }).catch(() => {
+      enqueueSnackbar("Failed to copy link!", { variant: "error" });
     });
   };
 
@@ -126,17 +161,17 @@ const TableCard = ({id, name, status, initials, seats, currentOrder}) => {
         )}
         
         {/* Action buttons */}
-        <div className="absolute bottom-2 right-2 flex gap-2">
+        <div className="absolute bottom-2 right-2 flex gap-1">
           {status === "Available" && (
             <button
               onClick={(e) => {
                 e.stopPropagation();
                 setShowBookingModal(true);
               }}
-              className="bg-[#f6b100] text-[#1f1f1f] px-3 py-1 rounded-lg hover:bg-[#e6a100] transition-colors text-sm font-semibold flex items-center gap-1"
+              className="bg-[#f6b100] text-[#1f1f1f] px-2 py-1 rounded-lg hover:bg-[#e6a100] transition-colors text-xs font-semibold flex items-center gap-1"
               title="Book this table"
             >
-              <FaUserPlus size={12} />
+              <FaUserPlus size={10} />
               Book
             </button>
           )}
@@ -147,12 +182,40 @@ const TableCard = ({id, name, status, initials, seats, currentOrder}) => {
               e.stopPropagation();
               navigate(`/table/${name}`);
             }}
-            className="bg-blue-600 text-white px-3 py-1 rounded-lg hover:bg-blue-700 transition-colors text-sm font-semibold flex items-center gap-1"
+            className="bg-blue-600 text-white px-2 py-1 rounded-lg hover:bg-blue-700 transition-colors text-xs font-semibold flex items-center gap-1"
             title="Customer menu for this table"
           >
-            <FaUtensils size={12} />
+            <FaUtensils size={10} />
             Menu
           </button>
+
+          {/* Copy Link button */}
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              copyTableLink();
+            }}
+            className="bg-green-600 text-white px-2 py-1 rounded-lg hover:bg-green-700 transition-colors text-xs font-semibold flex items-center gap-1"
+            title="Copy table menu link"
+          >
+            <FaExternalLinkAlt size={10} />
+            Link
+          </button>
+
+          {/* Delete button - only show for Available tables */}
+          {status === "Available" && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                setShowDeleteModal(true);
+              }}
+              className="bg-red-600 text-white px-2 py-1 rounded-lg hover:bg-red-700 transition-colors text-xs font-semibold flex items-center gap-1"
+              title="Delete this table"
+            >
+              <FaTrash size={10} />
+              Del
+            </button>
+          )}
         </div>
       </div>
 
@@ -452,6 +515,80 @@ const TableCard = ({id, name, status, initials, seats, currentOrder}) => {
                 className="bg-[#f6b100] text-[#1f1f1f] px-4 py-2 rounded-lg font-semibold"
               >
                 Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Table Modal */}
+      {showDeleteModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-[#1a1a1a] rounded-lg p-6 max-w-md w-full mx-4">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-[#f5f5f5] text-xl font-bold">Delete Table</h2>
+              <button 
+                onClick={() => setShowDeleteModal(false)}
+                className="text-[#ababab] hover:text-white"
+              >
+                <FaTimes size={20} />
+              </button>
+            </div>
+            
+            <div className="mb-6">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-12 h-12 rounded-full bg-red-600 flex items-center justify-center">
+                  <FaTrash className="text-white" size={20} />
+                </div>
+                <div>
+                  <h3 className="text-[#f5f5f5] font-semibold text-lg">Are you sure?</h3>
+                  <p className="text-[#ababab] text-sm">This action cannot be undone.</p>
+                </div>
+              </div>
+              
+              <div className="bg-[#262626] p-4 rounded-lg">
+                <h4 className="text-[#f5f5f5] font-semibold mb-2">Table Information</h4>
+                <div className="space-y-2 text-sm">
+                  <div className="flex justify-between">
+                    <span className="text-[#ababab]">Table Number:</span>
+                    <span className="text-[#f5f5f5] font-medium">#{name}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-[#ababab]">Seats:</span>
+                    <span className="text-[#f5f5f5] font-medium">{seats}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-[#ababab]">Status:</span>
+                    <span className="text-[#f5f5f5] font-medium">{status}</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="mt-4 p-3 bg-yellow-600/20 border border-yellow-600 rounded-lg">
+                <p className="text-yellow-400 text-sm">
+                  <strong>Warning:</strong> Deleting this table will permanently remove it from the system. 
+                  Any historical data associated with this table will remain but the table will no longer be available for new orders.
+                </p>
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-3">
+              <button 
+                onClick={() => setShowDeleteModal(false)}
+                className="bg-[#383838] text-[#f5f5f5] px-4 py-2 rounded-lg font-semibold hover:bg-[#4a4a4a] transition-colors"
+              >
+                Cancel
+              </button>
+              <button 
+                onClick={handleDeleteTable}
+                disabled={deleteTableMutation.isPending}
+                className={`px-4 py-2 rounded-lg font-semibold ${
+                  deleteTableMutation.isPending
+                    ? "bg-[#2a2a2a] text-[#666] cursor-not-allowed"
+                    : "bg-red-600 text-white hover:bg-red-700"
+                }`}
+              >
+                {deleteTableMutation.isPending ? "Deleting..." : "Delete Table"}
               </button>
             </div>
           </div>
