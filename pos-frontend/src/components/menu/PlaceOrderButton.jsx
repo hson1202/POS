@@ -24,6 +24,15 @@ const PlaceOrderButton = ({ className = "", disabled = false }) => {
   const isCustomerRoute = location.pathname.startsWith('/table/');
   const isAuthenticated = user.isAuth;
   
+  // Debug logging
+  console.log('🔍 PlaceOrderButton Debug:', {
+    pathname: location.pathname,
+    isCustomerRoute,
+    isAuthenticated,
+    userState: user,
+    tableId
+  });
+  
   const totalItems = cartData.reduce((total, item) => total + item.quantity, 0);
   const totalPrice = cartData.reduce((total, item) => total + item.price, 0);
 
@@ -129,6 +138,10 @@ const PlaceOrderButton = ({ className = "", disabled = false }) => {
           audio.play().catch(e => console.log('Audio play failed:', e));
           
           enqueueSnackbar("🖨️ Order sent to kitchen & printing receipt...", { variant: "info" });
+        } else if (isCustomerRoute) {
+          console.log('👤 Customer order - no print, no sound');
+        } else {
+          console.log('⚠️ Admin not authenticated or other issue:', { isCustomerRoute, isAuthenticated });
         }
       }
 

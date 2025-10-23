@@ -1,0 +1,82 @@
+[1mdiff --git a/pos-frontend/src/components/menu/PlaceOrderButton.jsx b/pos-frontend/src/components/menu/PlaceOrderButton.jsx[m
+[1mindex e47b3d2..8ab354a 100644[m
+[1m--- a/pos-frontend/src/components/menu/PlaceOrderButton.jsx[m
+[1m+++ b/pos-frontend/src/components/menu/PlaceOrderButton.jsx[m
+[36m@@ -5,19 +5,34 @@[m [mimport { enqueueSnackbar } from "notistack";[m
+ import { addOrder, addOrderGuest, updateTable } from "../../https/index";[m
+ import { removeAllItems } from "../../redux/slices/cartSlice";[m
+ import { removeCustomer } from "../../redux/slices/customerSlice";[m
+[31m-import { useParams } from "react-router-dom";[m
+[32m+[m[32mimport { useParams, useLocation } from "react-router-dom";[m
+ import { printCompactBill } from "../../utils/billTemplates";[m
+ [m
+ const PlaceOrderButton = ({ className = "", disabled = false }) => {[m
+   const dispatch = useDispatch();[m
+   const { id: tableIdFromParams } = useParams();[m
+[32m+[m[32m  const location = useLocation();[m
+   [m
+   const customerData = useSelector((state) => state.customer);[m
+   const cartData = useSelector((state) => state.cart);[m
+[32m+[m[32m  const user = useSelector((state) => state.user);[m
+   [m
+   // Get table ID from URL params (for /table/:id route) or from Redux (for /menu route)[m
+   const tableId = tableIdFromParams || customerData?.table?.tableId;[m
+   [m
+[32m+[m[32m  // Check if this is a customer route (table menu) vs admin route[m
+[32m+[m[32m  const isCustomerRoute = location.pathname.startsWith('/table/');[m
+[32m+[m[32m  const isAuthenticated = user.isAuth;[m
+[32m+[m[41m  [m
+[32m+[m[32m  // Debug logging[m
+[32m+[m[32m  console.log('🔍 PlaceOrderButton Debug:', {[m
+[32m+[m[32m    pathname: location.pathname,[m
+[32m+[m[32m    isCustomerRoute,[m
+[32m+[m[32m    isAuthenticated,[m
+[32m+[m[32m    userState: user,[m
+[32m+[m[32m    tableId[m
+[32m+[m[32m  });[m
+[32m+[m[41m  [m
+   const totalItems = cartData.reduce((total, item) => total + item.quantity, 0);[m
+   const totalPrice = cartData.reduce((total, item) => total + item.price, 0);[m
+ [m
+[36m@@ -107,20 +122,27 @@[m [mconst PlaceOrderButton = ({ className = "", disabled = false }) => {[m
+           // Don't show error to user since backend already updated it[m
+         }[m
+         [m
+[31m-        // Auto-print receipt for table orders[m
+[31m-        autoPrintReceipt({[m
+[31m-          _id: data._id,[m
+[31m-          tableNumber: tableId,[m
+[31m-          customerDetails: customerData,[m
+[31m-          items: cartData,[m
+[31m-          totalAmount: totalPrice[m
+[31m-        });[m
+[31m-        [m
+[31m-        // Play sound alert[m
+[31m-        const audio = new Audio('/audio/notification.mp3');[m
+[31m-        audio.play().catch(e => console.log('Audio play failed:', e));[m
+[31m-        [m
+[31m-        enqueueSnackbar("🖨️ Order sent to kitchen & printing receipt...", { variant: "info" });[m
+[32m+[m[32m        // Only auto-print and play sound for authenticated admin/staff, NOT for customers[m
+[32m+[m[32m        if (!isCustomerRoute && isAuthenticated) {[m
+[32m+[m[32m          // Auto-print receipt for admin/staff orders[m
+[32m+[m[32m          autoPrintReceipt({[m
+[32m+[m[32m            _id: data._id,[m
+[32m+[m[32m            tableNumber: tableId,[m
+[32m+[m[32m            customerDetails: customerData,[m
+[32m+[m[32m            items: cartData,[m
+[32m+[m[32m            totalAmount: totalPrice[m
+[32m+[m[32m          });[m
+[32m+[m[41m          [m
+[32m+[m[32m          // Play sound alert for admin/staff[m
+[32m+[m[32m          const audio = new Audio('/audio/notification.mp3');[m
+[32m+[m[32m          audio.play().catch(e => console.log('Audio play failed:', e));[m
+[32m+[m[41m          [m
+[32m+[m[32m          enqueueSnackbar("🖨️ Order sent to kitchen & printing receipt...", { variant: "info" });[m
+[32m+[m[32m        } else if (isCustomerRoute) {[m
+[32m+[m[32m          console.log('👤 Customer order - no print, no sound');[m
+[32m+[m[32m        } else {[m
+[32m+[m[32m          console.log('⚠️ Admin not authenticated or other issue:', { isCustomerRoute, isAuthenticated });[m
+[32m+[m[32m        }[m
+       }[m
+ [m
+       // Clear cart and customer data[m

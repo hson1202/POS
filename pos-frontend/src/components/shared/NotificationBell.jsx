@@ -16,14 +16,14 @@ const NotificationBell = ({ className = "" }) => {
   const [lastNotificationTime, setLastNotificationTime] = useState(0);
   const dropdownRef = useRef(null);
   const navigate = useNavigate();
-  const { socket } = useSocket();
+  const { socket, isConnected } = useSocket();
 
   const { data: resData, refetch } = useQuery({
     queryKey: ["orders"],
     queryFn: async () => {
       return await getOrders();
     },
-    refetchInterval: 30000, // Reduced frequency to 30 seconds since we use socket for real-time updates
+    refetchInterval: socket && socket.connected ? 30000 : 5000, // More frequent polling when socket is disconnected
   });
 
   // Close dropdown when clicking outside
@@ -43,12 +43,15 @@ const NotificationBell = ({ className = "" }) => {
   // Listen to socket events for real-time notifications
   useEffect(() => {
     if (socket) {
+      console.log('🔔 Setting up socket listeners, socket connected:', socket.connected);
+      
       const handleNewOrder = (orderData) => {
+        console.log('🆕 Received new-order event:', orderData);
         const now = Date.now();
         
         // Prevent duplicate notifications within 2 seconds
         if (now - lastNotificationTime < 2000) {
-          console.log('Duplicate notification prevented');
+          console.log('⚠️ Duplicate notification prevented');
           return;
         }
         
@@ -271,7 +274,12 @@ const NotificationBell = ({ className = "" }) => {
         <div className="absolute top-full right-0 mt-2 w-80 bg-[#1a1a1a] rounded-lg shadow-xl border border-[#2a2a2a] z-50 max-h-96 overflow-hidden">
           {/* Header */}
           <div className="flex items-center justify-between p-4 border-b border-[#2a2a2a]">
-            <h3 className="text-[#f5f5f5] font-semibold">Thông báo</h3>
+            <div className="flex items-center gap-2">
+              <h3 className="text-[#f5f5f5] font-semibold">Thông báo</h3>
+              {/* Socket connection status indicator */}
+              <div className={`w-2 h-2 rounded-full ${isConnected ? 'bg-green-500' : 'bg-red-500'}`} 
+                   title={isConnected ? 'Kết nối real-time' : 'Mất kết nối real-time'}></div>
+            </div>
             <div className="flex items-center gap-2">
               {notifications.length > 0 && (
                 <button

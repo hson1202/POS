@@ -17,7 +17,7 @@ export const SocketProvider = ({ children }) => {
   const [socket, setSocket] = useState(null);
   const [isConnected, setIsConnected] = useState(false);
   const [reconnectAttempts, setReconnectAttempts] = useState(0);
-  const { id: userId, role } = useSelector(state => state.user);
+  const { _id: userId, role } = useSelector(state => state.user);
   
   const MAX_RECONNECT_ATTEMPTS = 3;
 
@@ -27,6 +27,14 @@ export const SocketProvider = ({ children }) => {
       console.log('🚫 Skipping socket connection for customer table route');
       return;
     }
+    
+    console.log('🔍 Socket Debug:', {
+      pathname: window.location.pathname,
+      userId,
+      role,
+      reconnectAttempts,
+      shouldConnect: !!(userId && role && reconnectAttempts < MAX_RECONNECT_ATTEMPTS)
+    });
     
     if (userId && role && reconnectAttempts < MAX_RECONNECT_ATTEMPTS) {
       // Initialize socket connection
@@ -51,10 +59,12 @@ export const SocketProvider = ({ children }) => {
       });
 
       newSocket.on('connect', () => {
-        console.log('Socket connected:', newSocket.id);
+        console.log('✅ Socket connected:', newSocket.id);
         setIsConnected(true);
+        setReconnectAttempts(0); // Reset reconnect attempts on successful connection
         
         // Join appropriate rooms based on role
+        console.log('🏠 Joining room with:', { role, userId });
         newSocket.emit('join-room', { role, userId });
       });
 
@@ -76,7 +86,8 @@ export const SocketProvider = ({ children }) => {
 
       // Handle new order notifications - Only log for debugging, actual notifications handled by NotificationBell
       newSocket.on('new-order', (orderData) => {
-        console.log('New order received via socket:', orderData);
+        console.log('🆕 New order received via socket:', orderData);
+        console.log('🔔 This should trigger NotificationBell component');
         // Note: Notifications are handled by NotificationBell component to avoid duplicates
       });
 
