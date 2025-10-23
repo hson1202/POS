@@ -34,7 +34,7 @@ const Orders = () => {
   const filteredOrders = React.useMemo(() => {
     if (!resData?.data.data) return [];
     
-    let orders = resData.data.data.filter(order => {
+    let orders = resData?.data?.data?.filter(order => {
       // Handle case where orderStatus might not exist
       const orderStatus = order.orderStatus || "Pending";
       
@@ -110,14 +110,14 @@ const Orders = () => {
   return (
     <section className="bg-[#1f1f1f] min-h-screen flex flex-col">
       {/* Header */}
-      <div className="sticky top-0 z-10 bg-[#1f1f1f] border-b border-[#333] px-6 py-4">
+      <div className="sticky top-0 z-10 bg-[#1f1f1f] border-b border-[#333] px-4 md:px-6 py-3 md:py-4">
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 md:gap-3">
             <BackButton />
-            <h1 className="text-[#f5f5f5] text-xl font-bold">
+            <h1 className="text-[#f5f5f5] text-lg md:text-xl font-bold">
               Orders
             </h1>
-                         <span className="bg-[#f6b100] text-[#1f1f1f] px-2 py-1 rounded-full text-xs font-bold">
+            <span className="bg-[#f6b100] text-[#1f1f1f] px-2 py-1 rounded-full text-xs font-bold">
                {filteredOrders.length}
              </span>
                            {status === "pending" && (
@@ -154,10 +154,10 @@ const Orders = () => {
         </div>
         
         {/* Status Filter Tabs */}
-        <div className="flex items-center gap-1 mt-4 overflow-x-auto scrollbar-hide">
+        <div className="flex items-center gap-1 mt-3 md:mt-4 overflow-x-auto scrollbar-hide pb-1">
           <button 
             onClick={() => setStatus("all")} 
-            className={`flex-shrink-0 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
+            className={`flex-shrink-0 px-3 py-1.5 md:py-2 rounded-lg text-xs md:text-sm font-medium transition-all duration-200 ${
               status === "all" 
                 ? "bg-[#f6b100] text-[#1f1f1f] shadow-md" 
                 : "text-[#ababab] hover:bg-[#333] hover:text-white"
@@ -167,7 +167,7 @@ const Orders = () => {
           </button>
           <button 
             onClick={() => setStatus("pending")} 
-            className={`flex-shrink-0 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
+            className={`flex-shrink-0 px-3 py-1.5 md:py-2 rounded-lg text-xs md:text-sm font-medium transition-all duration-200 ${
               status === "pending" 
                 ? "bg-[#3a2e1f] text-orange-400 shadow-md border border-orange-400" 
                 : "text-orange-400 hover:bg-[#3a2e1f] hover:text-orange-300"
@@ -177,7 +177,7 @@ const Orders = () => {
           </button>
           <button 
             onClick={() => setStatus("progress")} 
-            className={`flex-shrink-0 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
+            className={`flex-shrink-0 px-3 py-1.5 md:py-2 rounded-lg text-xs md:text-sm font-medium transition-all duration-200 ${
               status === "progress" 
                 ? "bg-[#4a452e] text-yellow-400 shadow-md border border-yellow-400" 
                 : "text-yellow-400 hover:bg-[#4a452e] hover:text-yellow-300"
@@ -187,7 +187,7 @@ const Orders = () => {
           </button>
           <button 
             onClick={() => setStatus("ready")} 
-            className={`flex-shrink-0 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
+            className={`flex-shrink-0 px-3 py-1.5 md:py-2 rounded-lg text-xs md:text-sm font-medium transition-all duration-200 ${
               status === "ready" 
                 ? "bg-[#2e4a40] text-blue-400 shadow-md border border-blue-400" 
                 : "text-blue-400 hover:bg-[#2e4a40] hover:text-blue-300"
@@ -197,7 +197,7 @@ const Orders = () => {
           </button>
           <button 
             onClick={() => setStatus("completed")} 
-            className={`flex-shrink-0 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
+            className={`flex-shrink-0 px-3 py-1.5 md:py-2 rounded-lg text-xs md:text-sm font-medium transition-all duration-200 ${
               status === "completed" 
                 ? "bg-[#1f4a2e] text-green-400 shadow-md border border-green-400" 
                 : "text-green-400 hover:bg-[#1f4a2e] hover:text-green-300"

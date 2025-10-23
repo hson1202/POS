@@ -69,22 +69,48 @@ const webHookVerification = async (req, res, next) => {
         const payment = req.body.payload.payment.entity;
         console.log(`💰 Payment Captured: ${payment.amount / 100} HUF`);
 
+        // Normalize status to our enum
+        const normalizedStatus = (() => {
+          const s = (payment.status || '').toLowerCase();
+          if (s === 'captured' || s === 'paid' || s === 'success') return 'completed';
+          if (s === 'authorized') return 'pending';
+          if (s === 'failed' || s === 'cancelled' || s === 'canceled') return 'failed';
+          return 'pending';
+        })();
+
+        // Try to link to our internal order via stored Razorpay order id
+        let linkedOrder = null;
+        try {
+          linkedOrder = await Order.findOne({ 'paymentData.razorpay_order_id': payment.order_id });
+        } catch (findErr) {
+          console.warn('Failed to search order by razorpay_order_id:', findErr?.message);
+        }
+
+        if (!linkedOrder) {
+          console.warn('No internal order found for Razorpay order id:', payment.order_id);
+        }
+
         // Add Payment Details in Database
         const newPayment = new Payment({
           paymentId: payment.id,
-          orderId: payment.order_id,
+          orderId: linkedOrder?._id, // must be a valid ObjectId per schema
           amount: payment.amount / 100,
           currency: payment.currency,
-          status: payment.status,
-          paymentMethod: 'razorpay', // Set method for Razorpay payments
+          status: normalizedStatus,
+          paymentMethod: 'razorpay',
           email: payment.email,
           contact: payment.contact,
           transactionId: payment.id,
           notes: 'Payment via Razorpay webhook',
-          createdAt: new Date(payment.created_at * 1000) 
-        })
+          createdAt: new Date(payment.created_at * 1000)
+        });
 
-        await newPayment.save();
+        // Only save if order is linked (orderId is required by schema)
+        if (newPayment.orderId) {
+          await newPayment.save();
+        } else {
+          console.warn('Skipped saving payment because order link was not found');
+        }
       }
 
       res.json({ success: true });
@@ -101,13 +127,32 @@ const webHookVerification = async (req, res, next) => {
 const getPayments = async (req, res, next) => {
   try {
     const payments = await Payment.find()
-      .sort({ createdAt: -1 }) // Sort by newest first
-      .lean(); // Use lean for better performance
-    
-    res.status(200).json({ 
-      success: true, 
-      data: payments 
+      .sort({ createdAt: -1 })
+      .populate({
+        path: 'orderId',
+        select: 'tableNumber table customerDetails totalAmount',
+      })
+      .lean();
+
+    const enriched = payments.map((p) => {
+      const order = p.orderId && typeof p.orderId === 'object' ? p.orderId : null;
+      const tableNumber = order?.tableNumber || order?.table?.tableNo || null;
+      const customerName = order?.customerDetails?.name || undefined;
+      const customerPhone = order?.customerDetails?.phone || undefined;
+      const totalAmount = order?.totalAmount || undefined;
+      return {
+        ...p,
+        orderInfo: {
+          tableNumber,
+          customerName,
+          customerPhone,
+          totalAmount,
+          orderId: order?._id || p.orderId || null,
+        },
+      };
     });
+
+    res.status(200).json({ success: true, data: enriched });
   } catch (error) {
     console.error('Error fetching payments:', error);
     next(error);

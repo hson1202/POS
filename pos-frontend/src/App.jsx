@@ -5,7 +5,7 @@ import {
   useLocation,
   Navigate,
 } from "react-router-dom";
-import { Home, Auth, Orders, Tables, Menu, Dashboard, TableMenu, OrderTracking, Inventory, MenuManagement, More, EmployeeManagement, OrderHistory, PaymentHistory, DishDeployment } from "./pages";
+import { Home, Auth, Orders, Tables, Menu, Dashboard, TableMenu, OrderTracking, Inventory, MenuManagement, More, EmployeeManagement, OrderHistory, PaymentHistory, DishDeployment, Analytics, BillTest } from "./pages";
 import KitchenDisplay from "./pages/KitchenDisplay";
 import Debug from "./pages/Debug";
 import OrderFlowTest from "./pages/OrderFlowTest";
@@ -70,6 +70,14 @@ function Layout() {
           element={
             <ProtectedRoutes>
               <Dashboard />
+            </ProtectedRoutes>
+          }
+        />
+        <Route
+          path="/analytics"
+          element={
+            <ProtectedRoutes>
+              <Analytics />
             </ProtectedRoutes>
           }
         />
@@ -139,6 +147,14 @@ function Layout() {
           element={
             <ProtectedRoutes>
               <KitchenDisplay />
+            </ProtectedRoutes>
+          }
+        />
+        <Route
+          path="/bill-test"
+          element={
+            <ProtectedRoutes>
+              <BillTest />
             </ProtectedRoutes>
           }
         />

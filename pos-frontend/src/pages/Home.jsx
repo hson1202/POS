@@ -8,7 +8,6 @@ import RecentOrders from "../components/home/RecentOrders";
 import PopularDishes from "../components/home/PopularDishes";
 import { useQuery } from "@tanstack/react-query";
 import { axiosWrapper } from "../https/axiosWrapper";
-import NotificationBell from "../components/shared/NotificationBell";
 
 const Home = () => {
 
@@ -39,14 +38,13 @@ const Home = () => {
   const progressChange = calculatePercentageChange(inProgressCount, Math.max(inProgressCount - 2, 0));
 
   return (
-    <section className="bg-[#1f1f1f]  h-[calc(100vh-5rem)] overflow-hidden flex gap-3">
+    <section className="bg-[#1f1f1f] h-[calc(100vh-5rem)] overflow-hidden flex flex-col lg:flex-row gap-2 md:gap-3">
       {/* Left Div */}
-      <div className="flex-[3]">
-        <div className="flex items-center justify-between px-8 py-4">
+      <div className="flex-[3] flex flex-col min-h-0">
+        <div className="flex items-center justify-between px-4 md:px-8 py-3 md:py-4">
           <Greetings />
-          <NotificationBell />
         </div>
-        <div className="flex items-center w-full gap-3 px-8 mt-8">
+        <div className="flex items-center w-full gap-2 md:gap-3 px-4 md:px-8 mt-4 md:mt-8">
           <MiniCard 
             title="Total Earnings" 
             icon={<BsCashCoin />} 
@@ -63,7 +61,7 @@ const Home = () => {
         <RecentOrders />
       </div>
       {/* Right Div */}
-      <div className="flex-[2]">
+      <div className="flex-[2] hidden lg:block">
         <PopularDishes />
       </div>
       <BottomNav />

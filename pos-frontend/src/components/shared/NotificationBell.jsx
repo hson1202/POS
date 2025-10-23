@@ -5,22 +5,25 @@ import { getOrders } from "../../https";
 import { enqueueSnackbar } from "notistack";
 import { formatDateAndTime, generateShortOrderId } from "../../utils";
 import { useNavigate } from "react-router-dom";
+import { useSocket } from "../../contexts/SocketContext";
+import { printBill, printCompactBill } from "../../utils/billTemplates";
 
 const NotificationBell = ({ className = "" }) => {
   const [newOrderCount, setNewOrderCount] = useState(0);
-  const [lastOrderCount, setLastOrderCount] = useState(0);
   const [showDropdown, setShowDropdown] = useState(false);
   const [notifications, setNotifications] = useState([]);
   const [audio] = useState(new Audio('/audio/notification.mp3'));
+  const [lastNotificationTime, setLastNotificationTime] = useState(0);
   const dropdownRef = useRef(null);
   const navigate = useNavigate();
+  const { socket } = useSocket();
 
   const { data: resData, refetch } = useQuery({
     queryKey: ["orders"],
     queryFn: async () => {
       return await getOrders();
     },
-    refetchInterval: 5000, // Auto refresh every 5 seconds
+    refetchInterval: 30000, // Reduced frequency to 30 seconds since we use socket for real-time updates
   });
 
   // Close dropdown when clicking outside
@@ -37,28 +40,44 @@ const NotificationBell = ({ className = "" }) => {
     };
   }, []);
 
-  // Check for new orders
+  // Listen to socket events for real-time notifications
   useEffect(() => {
-    if (resData?.data?.data) {
-      const currentOrderCount = resData.data.data.length;
-      
-      if (lastOrderCount > 0 && currentOrderCount > lastOrderCount) {
-        const newOrders = currentOrderCount - lastOrderCount;
-        setNewOrderCount(prev => prev + newOrders);
+    if (socket) {
+      const handleNewOrder = (orderData) => {
+        const now = Date.now();
         
-        // Add new notifications
-        const newNotifications = resData.data.data
-          .slice(-newOrders)
-          .map(order => ({
-            id: order._id,
-            type: 'new_order',
-            message: `New order from ${order.customerDetails?.name || 'Guest'} - Table ${order.table}`,
-            orderId: order._id,
-            timestamp: new Date(),
-            read: false
-          }));
+        // Prevent duplicate notifications within 2 seconds
+        if (now - lastNotificationTime < 2000) {
+          console.log('Duplicate notification prevented');
+          return;
+        }
         
-        setNotifications(prev => [...newNotifications, ...prev]);
+        setLastNotificationTime(now);
+        setNewOrderCount(prev => prev + 1);
+        
+        // Different message for new order vs added items
+        const isNewOrder = orderData.isNewOrder !== false; // Default to true
+        const itemsCount = orderData.addedItemsCount || orderData.items?.length || 0;
+        
+        let message;
+        if (isNewOrder) {
+          message = `Đơn hàng mới từ ${orderData.customerDetails?.name || 'Khách'} - Bàn ${orderData.tableNumber}`;
+        } else {
+          message = `${orderData.customerDetails?.name || 'Khách'} đã thêm ${itemsCount} món - Bàn ${orderData.tableNumber}`;
+        }
+        
+        // Add new notification
+        const newNotification = {
+          id: `${orderData._id}-${now}`, // Unique ID to allow multiple notifications for same order
+          type: isNewOrder ? 'new_order' : 'added_items',
+          message: message,
+          orderId: orderData._id,
+          timestamp: new Date(),
+          read: false,
+          isNewOrder
+        };
+        
+        setNotifications(prev => [newNotification, ...prev]);
         
         // Play notification sound
         try {
@@ -69,23 +88,123 @@ const NotificationBell = ({ className = "" }) => {
         
         // Show desktop notification
         if (Notification.permission === "granted") {
-          new Notification("New Order Received!", {
-            body: `${newOrders} new order${newOrders > 1 ? 's' : ''} received!`,
+          new Notification("Có đơn hàng mới!", {
+            body: `Đơn từ bàn ${orderData.tableNumber}`,
             icon: "/logo.png",
             badge: "/logo.png",
           });
         }
         
         // Show snackbar notification
-        enqueueSnackbar(`🆕 ${newOrders} new order${newOrders > 1 ? 's' : ''} received!`, {
-          variant: "success",
-          autoHideDuration: 3000,
-        });
-      }
+        if (isNewOrder) {
+          enqueueSnackbar(`🆕 Đơn hàng mới từ bàn ${orderData.tableNumber}!`, {
+            variant: "success",
+            autoHideDuration: 3000,
+          });
+        } else {
+          enqueueSnackbar(`➕ Bàn ${orderData.tableNumber} đã thêm ${itemsCount} món!`, {
+            variant: "info",
+            autoHideDuration: 3000,
+          });
+        }
+        
+        // Auto-print kitchen bill for admin (only admin receives socket notifications)
+        try {
+          // Create order object in the format expected by printBill
+          const order = {
+            _id: orderData._id,
+            customerDetails: orderData.customerDetails,
+            customerName: orderData.customerDetails?.name,
+            customerPhone: orderData.customerDetails?.phone,
+            tableNumber: orderData.tableNumber,
+            table: orderData.tableNumber,
+            items: isNewOrder ? orderData.items : orderData.items, // Use items (new items only for add-ons)
+            allItems: orderData.allItems, // All items for reference
+            totalAmount: orderData.totalAmount,
+            orderStatus: 'Pending', // New orders are always pending
+            createdAt: orderData.createdAt || new Date().toISOString(),
+            isNewOrder: isNewOrder,
+            addedItemsCount: itemsCount
+          };
+          
+          // Print compact kitchen bill for thermal printer (will automatically use kitchen template since status is Pending)
+          printCompactBill(order);
+          
+          if (isNewOrder) {
+            console.log('✅ Kitchen bill printed automatically for new order');
+          } else {
+            console.log(`✅ Additional items bill printed (${itemsCount} items)`);
+          }
+        } catch (error) {
+          console.error('Auto-print kitchen bill failed:', error);
+          // Don't show error to user as this is automatic
+        }
+        
+        // Refresh orders data
+        refetch();
+      };
+
+      socket.on('new-order', handleNewOrder);
       
-      setLastOrderCount(currentOrderCount);
+      return () => {
+        socket.off('new-order', handleNewOrder);
+      };
     }
-  }, [resData?.data?.data, lastOrderCount, audio]);
+  }, [socket, audio, lastNotificationTime, refetch]);
+
+  // Load pending orders on mount and convert them to notifications
+  useEffect(() => {
+    if (resData?.data?.data) {
+      const orders = resData.data.data;
+      
+      // Filter pending orders only
+      const pendingOrders = orders.filter(order => 
+        order.orderStatus === 'Pending' || order.orderStatus === 'pending'
+      );
+      
+      // Set notifications with functional update to access prev state
+      setNotifications(prev => {
+        // Create map of existing notifications (includes both socket and DB notifications)
+        const existingNotificationsMap = new Map();
+        prev.forEach(n => {
+          existingNotificationsMap.set(n.orderId, n);
+        });
+        
+        // Process pending orders
+        const newOrderIds = [];
+        const updatedNotifications = pendingOrders.map(order => {
+          const existing = existingNotificationsMap.get(order._id);
+          
+          if (existing) {
+            // Keep existing notification with preserved read status and type
+            return existing;
+          } else {
+            // New notification - only if not in previous notifications
+            newOrderIds.push(order._id);
+            return {
+              id: order._id,
+              type: 'pending_order',
+              message: `Đơn đang chờ từ ${order.customerDetails?.name || order.customerName || 'Khách'} - Bàn ${order.tableNumber || order.table || 'N/A'}`,
+              orderId: order._id,
+              timestamp: new Date(order.createdAt),
+              read: false
+            };
+          }
+        });
+        
+        // Update count for new notifications
+        if (newOrderIds.length > 0) {
+          setNewOrderCount(prevCount => prevCount + newOrderIds.length);
+          console.log(`Added ${newOrderIds.length} new pending orders as notifications`);
+        }
+        
+        // Sort by timestamp, newest first
+        return updatedNotifications.sort((a, b) => 
+          new Date(b.timestamp) - new Date(a.timestamp)
+        );
+      });
+    }
+  }, [resData?.data?.data]);
 
   // Request notification permission on component mount
   useEffect(() => {
@@ -110,9 +229,8 @@ const NotificationBell = ({ className = "" }) => {
     
     // Add a small delay to ensure the orders page is loaded
     setTimeout(() => {
-      // You can add logic here to highlight or scroll to the specific order
-      // For now, just show a message
-      enqueueSnackbar(`Navigated to Orders page. Look for Order ID: #${generateShortOrderId(orderId)}`, {
+      // Hiển thị thông báo điều hướng
+      enqueueSnackbar(`Đã chuyển đến trang Đơn hàng. Tìm mã đơn: #${generateShortOrderId(orderId)}`, {
         variant: "info",
         autoHideDuration: 3000,
       });
@@ -142,8 +260,8 @@ const NotificationBell = ({ className = "" }) => {
             )}
           </div>
           <span className="text-[#f5f5f5] text-sm font-medium">
-            {newOrderCount > 0 ? `${newOrderCount} New Order${newOrderCount > 1 ? 's' : ''}` : 
-             unreadCount > 0 ? `${unreadCount} Unread` : 'No New Orders'}
+            {newOrderCount > 0 ? `${newOrderCount} đơn hàng mới` : 
+             unreadCount > 0 ? `${unreadCount} chưa đọc` : 'Không có đơn mới'}
           </span>
         </div>
       </div>
@@ -153,14 +271,14 @@ const NotificationBell = ({ className = "" }) => {
         <div className="absolute top-full right-0 mt-2 w-80 bg-[#1a1a1a] rounded-lg shadow-xl border border-[#2a2a2a] z-50 max-h-96 overflow-hidden">
           {/* Header */}
           <div className="flex items-center justify-between p-4 border-b border-[#2a2a2a]">
-            <h3 className="text-[#f5f5f5] font-semibold">Notifications</h3>
+            <h3 className="text-[#f5f5f5] font-semibold">Thông báo</h3>
             <div className="flex items-center gap-2">
               {notifications.length > 0 && (
                 <button
                   onClick={clearAllNotifications}
                   className="text-[#ababab] hover:text-red-400 text-sm"
                 >
-                  Clear all
+                  Xóa tất cả
                 </button>
               )}
               <button
@@ -193,7 +311,7 @@ const NotificationBell = ({ className = "" }) => {
                       </p>
                       {notification.type === 'new_order' && (
                         <p className="text-[#025cca] text-xs font-mono mt-1">
-                          Order ID: #{generateShortOrderId(notification.orderId)}
+                          Mã đơn: #{generateShortOrderId(notification.orderId)}
                         </p>
                       )}
                     </div>
@@ -206,8 +324,8 @@ const NotificationBell = ({ className = "" }) => {
             ) : (
               <div className="p-8 text-center">
                 <FaBell className="text-[#ababab] text-2xl mx-auto mb-2" />
-                <p className="text-[#ababab] text-sm">No notifications yet</p>
-                <p className="text-[#666] text-xs mt-1">New orders will appear here</p>
+                <p className="text-[#ababab] text-sm">Chưa có thông báo</p>
+                <p className="text-[#666] text-xs mt-1">Đơn hàng mới sẽ hiển thị tại đây</p>
               </div>
             )}
           </div>

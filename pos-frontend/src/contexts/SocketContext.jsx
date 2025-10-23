@@ -74,27 +74,10 @@ export const SocketProvider = ({ children }) => {
         }
       });
 
-      // Handle new order notifications
+      // Handle new order notifications - Only log for debugging, actual notifications handled by NotificationBell
       newSocket.on('new-order', (orderData) => {
-        console.log('New order received:', orderData);
-        
-        // Play notification sound
-        const audio = new Audio('/audio/notification.mp3');
-        audio.play().catch(e => console.log('Audio play failed:', e));
-        
-        // Show notification
-        enqueueSnackbar(`🍳 New order from Table ${orderData.tableNumber}!`, {
-          variant: 'info',
-          autoHideDuration: 5000,
-        });
-
-        // Show desktop notification if permission granted
-        if (Notification.permission === 'granted') {
-          new Notification('New Order!', {
-            body: `Table ${orderData.tableNumber} - ${orderData.items?.length || 0} items`,
-            icon: '/logo.png',
-          });
-        }
+        console.log('New order received via socket:', orderData);
+        // Note: Notifications are handled by NotificationBell component to avoid duplicates
       });
 
       // Handle order updates

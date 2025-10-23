@@ -15,11 +15,11 @@ const RecentOrders = () => {
   const orderStatusUpdateMutation = useMutation({
     mutationFn: ({orderId, orderStatus}) => updateOrderStatus({orderId, orderStatus}),
     onSuccess: (data) => {
-      enqueueSnackbar("Order status updated successfully!", { variant: "success" });
+      enqueueSnackbar("Cập nhật trạng thái đơn hàng thành công!", { variant: "success" });
       queryClient.invalidateQueries(["orders"]); // Refresh order list
     },
     onError: () => {
-      enqueueSnackbar("Failed to update order status!", { variant: "error" });
+      enqueueSnackbar("Cập nhật trạng thái thất bại!", { variant: "error" });
     }
   })
 
@@ -32,28 +32,28 @@ const RecentOrders = () => {
   });
 
   if (isError) {
-    enqueueSnackbar("Something went wrong!", { variant: "error" });
+    enqueueSnackbar("Đã xảy ra lỗi!", { variant: "error" });
   }
 
-  console.log(resData.data.data);
+  console.log(resData?.data?.data);
 
   return (
     <div className="container mx-auto bg-[#262626] p-4 rounded-lg">
       <h2 className="text-[#f5f5f5] text-xl font-semibold mb-4">
-        Recent Orders
+        Đơn hàng gần đây
       </h2>
       <div className="overflow-x-auto">
         <table className="w-full text-left text-[#f5f5f5]">
           <thead className="bg-[#333] text-[#ababab]">
             <tr>
-              <th className="p-3">Order ID</th>
-              <th className="p-3">Customer</th>
-              <th className="p-3">Status</th>
-              <th className="p-3">Date & Time</th>
-              <th className="p-3">Items</th>
-              <th className="p-3">Table No</th>
-              <th className="p-3">Total</th>
-              <th className="p-3 text-center">Payment Method</th>
+              <th className="p-3">Mã đơn</th>
+              <th className="p-3">Khách hàng</th>
+              <th className="p-3">Trạng thái</th>
+              <th className="p-3">Ngày & giờ</th>
+              <th className="p-3">Món</th>
+              <th className="p-3">Số bàn</th>
+              <th className="p-3">Tổng tiền</th>
+              <th className="p-3 text-center">Phương thức thanh toán</th>
             </tr>
           </thead>
           <tbody>
@@ -79,22 +79,22 @@ const RecentOrders = () => {
                     onChange={(e) => handleStatusChange({orderId: order._id, orderStatus: e.target.value})}
                   >
                     <option className="text-orange-500" value="Pending">
-                      Pending
+                      Chờ xử lý
                     </option>
                     <option className="text-yellow-500" value="In Progress">
-                      In Progress
+                      Đang chế biến
                     </option>
                     <option className="text-blue-500" value="Ready">
-                      Ready
+                      Sẵn sàng
                     </option>
                     <option className="text-green-500" value="Completed">
-                      Completed
+                      Hoàn thành
                     </option>
                   </select>
                 </td>
                 <td className="p-4">{formatDateAndTime(order.orderDate)}</td>
-                <td className="p-4">{order.items.length} Items</td>
-                <td className="p-4">Table - {order.table.tableNo}</td>
+                <td className="p-4">{order.items.length} món</td>
+                <td className="p-4">Bàn - {order.tableNumber || order.table?.tableNo || order.table || 'N/A'}</td>
                 <td className="p-4">{order.bills.totalWithTax} Ft</td>
                 <td className="p-4">
                   {order.paymentMethod}

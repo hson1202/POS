@@ -42,10 +42,19 @@ const cartSlice = createSlice({
                     state[itemIndex].price = state[itemIndex].pricePerQuantity * quantity;
                 }
             }
+        },
+
+        updateItemNote: (state, action) => {
+            const { id, note } = action.payload;
+            const itemIndex = state.findIndex(item => item.id === id);
+            
+            if (itemIndex !== -1) {
+                state[itemIndex].note = note;
+            }
         }
     }
 })
 
 export const getTotalPrice = (state) => state.cart.reduce((total, item) => total + (item.price || 0), 0);
-export const { addItems, removeItem, removeAllItems, updateQuantity } = cartSlice.actions;
+export const { addItems, removeItem, removeAllItems, updateQuantity, updateItemNote } = cartSlice.actions;
 export default cartSlice.reducer;

@@ -45,8 +45,35 @@ const getIngredientsByCategory = async (req, res) => {
 // Tạo nguyên liệu mới
 const createIngredient = async (req, res) => {
     try {
-        const ingredient = new Ingredient(req.body);
+        const ingredientData = { ...req.body };
+        const initialStock = ingredientData.currentStock || 0;
+        
+        // Force initial stock to 0 when creating
+        ingredientData.currentStock = 0;
+        
+        const ingredient = new Ingredient(ingredientData);
         await ingredient.save();
+        
+        // If initial stock > 0, create a stock transaction (without pricing)
+        if (initialStock > 0) {
+            const transaction = new StockTransaction({
+                ingredient: ingredient._id,
+                type: 'IN',
+                quantity: initialStock,
+                unitPrice: 0,
+                totalAmount: 0,
+                reason: 'ADJUSTMENT',
+                notes: 'Tồn kho ban đầu khi tạo nguyên liệu',
+                performedBy: req.user.id,
+                previousStock: 0,
+                newStock: initialStock
+            });
+            await transaction.save();
+            
+            // Update ingredient stock
+            ingredient.currentStock = initialStock;
+            await ingredient.save();
+        }
         
         res.status(201).json({
             success: true,
@@ -132,7 +159,15 @@ const deleteIngredient = async (req, res) => {
 // Nhập kho nguyên liệu
 const addStock = async (req, res) => {
     try {
-        const { ingredientId, quantity, unitPrice, supplier, notes } = req.body;
+        const { ingredientId, quantity, unitPrice, supplier, notes, reason } = req.body;
+        
+        // Validate quantity
+        if (!quantity || quantity <= 0) {
+            return res.status(400).json({
+                success: false,
+                message: 'Số lượng phải lớn hơn 0'
+            });
+        }
         
         const ingredient = await Ingredient.findById(ingredientId);
         if (!ingredient) {
@@ -144,7 +179,8 @@ const addStock = async (req, res) => {
         
         const previousStock = ingredient.currentStock;
         const newStock = previousStock + quantity;
-        const totalAmount = quantity * unitPrice;
+        const usedUnitPrice = typeof unitPrice === 'number' && !isNaN(unitPrice) ? unitPrice : 0;
+        const totalAmount = quantity * usedUnitPrice;
         
         // Cập nhật stock
         ingredient.currentStock = newStock;
@@ -156,9 +192,9 @@ const addStock = async (req, res) => {
             ingredient: ingredientId,
             type: 'IN',
             quantity,
-            unitPrice,
+            unitPrice: usedUnitPrice,
             totalAmount,
-            reason: 'PURCHASE',
+            reason: reason || 'PURCHASE',
             notes: notes || `Nhập kho từ ${supplier || 'nhà cung cấp'}`,
             performedBy: req.user.id,
             previousStock,
@@ -215,8 +251,8 @@ const reduceStock = async (req, res) => {
             ingredient: ingredientId,
             type: 'OUT',
             quantity,
-            unitPrice: ingredient.pricePerUnit,
-            totalAmount: quantity * ingredient.pricePerUnit,
+            unitPrice: 0,
+            totalAmount: 0,
             reason: reason || 'SALE',
             notes: notes || 'Xuất kho',
             performedBy: req.user.id,

@@ -25,7 +25,6 @@ const Inventory = () => {
     unit: 'g',
     currentStock: 0,
     minStock: 0,
-    pricePerUnit: 0,
     supplier: '',
     description: ''
   });
@@ -35,7 +34,6 @@ const Inventory = () => {
 
   const [stockData, setStockData] = useState({
     quantity: 0,
-    unitPrice: 0,
     reason: 'PURCHASE',
     notes: ''
   });
@@ -43,10 +41,10 @@ const Inventory = () => {
   const categories = ['Meat', 'Vegetables', 'Spices', 'Grains', 'Seafood', 'Dairy & Eggs', 'Others'];
   const units = ['g', 'kg', 'ml', 'l', 'piece', 'bunch', 'pack', 'box', 'Others'];
   const stockReasons = [
-    { value: 'PURCHASE', label: 'Purchase' },
-    { value: 'ADJUSTMENT', label: 'Adjustment' },
-    { value: 'WASTE', label: 'Waste/Loss' },
-    { value: 'TRANSFER', label: 'Transfer' }
+    { value: 'PURCHASE', label: 'Nhập mua' },
+    { value: 'ADJUSTMENT', label: 'Điều chỉnh' },
+    { value: 'WASTE', label: 'Hao hụt/Hư hỏng' },
+    { value: 'TRANSFER', label: 'Chuyển kho' }
   ];
 
   useEffect(() => {
@@ -85,6 +83,16 @@ const Inventory = () => {
         return;
       }
 
+      // Validate numbers
+      if (submitData.currentStock < 0) {
+        enqueueSnackbar('Tồn kho không được âm', { variant: 'error' });
+        return;
+      }
+      if (submitData.minStock < 0) {
+        enqueueSnackbar('Tồn tối thiểu không được âm', { variant: 'error' });
+        return;
+      }
+
       if (editingIngredient) {
         await axiosWrapper.put(`/api/ingredients/${editingIngredient._id}`, submitData);
         enqueueSnackbar('Cập nhật nguyên liệu thành công', { variant: 'success' });
@@ -96,7 +104,8 @@ const Inventory = () => {
       resetForm();
       fetchIngredients();
     } catch (error) {
-      enqueueSnackbar('Có lỗi xảy ra', { variant: 'error' });
+      const errorMsg = error.response?.data?.message || 'Có lỗi xảy ra';
+      enqueueSnackbar(errorMsg, { variant: 'error' });
     }
   };
 
@@ -120,7 +129,6 @@ const Inventory = () => {
       unit: ingredient.unit,
       currentStock: ingredient.currentStock,
       minStock: ingredient.minStock,
-      pricePerUnit: ingredient.pricePerUnit,
       supplier: ingredient.supplier,
       description: ingredient.description
     });
@@ -129,6 +137,15 @@ const Inventory = () => {
 
   const handleAddStock = async (e) => {
     e.preventDefault();
+    
+    // Validate quantity
+    if (!stockData.quantity || stockData.quantity <= 0) {
+      enqueueSnackbar('Số lượng phải lớn hơn 0', { variant: 'error' });
+      return;
+    }
+    
+    // No unit price required
+    
     try {
       await axiosWrapper.post('/api/ingredients/stock/add', {
         ingredientId: selectedIngredient._id,
@@ -139,7 +156,8 @@ const Inventory = () => {
       resetStockForm();
       fetchIngredients();
     } catch (error) {
-      enqueueSnackbar('Có lỗi xảy ra', { variant: 'error' });
+      const errorMsg = error.response?.data?.message || 'Có lỗi xảy ra';
+      enqueueSnackbar(errorMsg, { variant: 'error' });
     }
   };
 
@@ -150,7 +168,6 @@ const Inventory = () => {
       unit: 'g',
       currentStock: 0,
       minStock: 0,
-      pricePerUnit: 0,
       supplier: '',
       description: ''
     });
@@ -162,7 +179,6 @@ const Inventory = () => {
   const resetStockForm = () => {
     setStockData({
       quantity: 0,
-      unitPrice: 0,
       reason: 'PURCHASE',
       notes: ''
     });
@@ -173,7 +189,6 @@ const Inventory = () => {
     setSelectedIngredient(ingredient);
     setStockData({
       quantity: 0,
-      unitPrice: ingredient.pricePerUnit,
       reason: 'PURCHASE',
       notes: ''
     });
@@ -284,10 +299,6 @@ const Inventory = () => {
                   <span className="text-[#ababab]">Tồn tối thiểu:</span>
                   <span className="text-white">{ingredient.minStock} {ingredient.unit}</span>
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-[#ababab]">Giá/đơn vị:</span>
-                  <span className="text-white">{ingredient.pricePerUnit.toLocaleString()} Ft</span>
-                </div>
                 {ingredient.supplier && (
                   <div className="flex justify-between">
                     <span className="text-[#ababab]">Nhà cung cấp:</span>
@@ -372,36 +383,42 @@ const Inventory = () => {
                       />
                     )}
                   </div>
-                  <div>
-                    <label className="block text-[#ababab] mb-2">Giá/đơn vị</label>
-                    <input
-                      type="number"
-                      value={formData.pricePerUnit}
-                      onChange={(e) => setFormData({...formData, pricePerUnit: parseFloat(e.target.value)})}
-                      className="w-full bg-[#1f1f1f] border border-[#3a3a3a] rounded-lg px-3 py-2 text-white focus:outline-none focus:border-[#F6B100]"
-                      required
-                    />
-                  </div>
+                  {/* Removed price per unit field */}
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-[#ababab] mb-2">Tồn kho hiện tại</label>
+                    <label className="block text-[#ababab] mb-2">
+                      {editingIngredient ? 'Tồn kho hiện tại' : 'Tồn kho ban đầu'}
+                    </label>
                     <input
                       type="number"
+                      min="0"
+                      step="0.01"
                       value={formData.currentStock}
-                      onChange={(e) => setFormData({...formData, currentStock: parseFloat(e.target.value)})}
+                      onChange={(e) => setFormData({...formData, currentStock: parseFloat(e.target.value) || 0})}
                       className="w-full bg-[#1f1f1f] border border-[#3a3a3a] rounded-lg px-3 py-2 text-white focus:outline-none focus:border-[#F6B100]"
                       required
+                      placeholder="0"
+                      disabled={editingIngredient}
                     />
+                    {!editingIngredient && (
+                      <p className="text-xs text-[#ababab] mt-1">Có thể nhập 0 và cập nhật sau</p>
+                    )}
+                    {editingIngredient && (
+                      <p className="text-xs text-yellow-400 mt-1">Dùng "Cập nhật tồn kho" để thay đổi số lượng</p>
+                    )}
                   </div>
                   <div>
                     <label className="block text-[#ababab] mb-2">Tồn tối thiểu</label>
                     <input
                       type="number"
+                      min="0"
+                      step="0.01"
                       value={formData.minStock}
-                      onChange={(e) => setFormData({...formData, minStock: parseFloat(e.target.value)})}
+                      onChange={(e) => setFormData({...formData, minStock: parseFloat(e.target.value) || 0})}
                       className="w-full bg-[#1f1f1f] border border-[#3a3a3a] rounded-lg px-3 py-2 text-white focus:outline-none focus:border-[#F6B100]"
                       required
+                      placeholder="Mức cảnh báo"
                     />
                   </div>
                 </div>
@@ -459,22 +476,16 @@ const Inventory = () => {
                   <label className="block text-[#ababab] mb-2">Số lượng</label>
                   <input
                     type="number"
+                    min="0.01"
+                    step="0.01"
                     value={stockData.quantity}
-                    onChange={(e) => setStockData({...stockData, quantity: parseFloat(e.target.value)})}
+                    onChange={(e) => setStockData({...stockData, quantity: parseFloat(e.target.value) || 0})}
                     className="w-full bg-[#1f1f1f] border border-[#3a3a3a] rounded-lg px-3 py-2 text-white focus:outline-none focus:border-[#F6B100]"
                     required
+                    placeholder="Nhập số lượng"
                   />
                 </div>
-                <div>
-                  <label className="block text-[#ababab] mb-2">Giá/đơn vị (Ft)</label>
-                  <input
-                    type="number"
-                    value={stockData.unitPrice}
-                    onChange={(e) => setStockData({...stockData, unitPrice: parseFloat(e.target.value)})}
-                    className="w-full bg-[#1f1f1f] border border-[#3a3a3a] rounded-lg px-3 py-2 text-white focus:outline-none focus:border-[#F6B100]"
-                    required
-                  />
-                </div>
+                {/* Removed unit price field from stock update */}
                 <div>
                   <label className="block text-[#ababab] mb-2">Lý do</label>
                   <select

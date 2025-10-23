@@ -85,3 +85,47 @@ export const generateReadableOrderId = () => {
   
   return `${year}${month}${day}${hour}${minute}${second}`;
 };
+
+// Kiểm tra quyền cập nhật trạng thái đơn hàng
+export const canUpdateOrderStatus = (userRole) => {
+  if (!userRole) return false;
+  
+  const allowedRoles = [
+    'admin', 'Admin',
+    'manager', 'Manager', 
+    'waiter', 'Waiter',
+    'cashier', 'Cashier',
+    'employee', 'Employee'
+  ];
+  
+  return allowedRoles.includes(userRole);
+};
+
+// Kiểm tra quyền admin
+export const isAdmin = (userRole) => {
+  return userRole === 'admin' || userRole === 'Admin';
+};
+
+// Kiểm tra quyền manager (bao gồm admin)
+export const isManager = (userRole) => {
+  const managerRoles = ['admin', 'Admin', 'manager', 'Manager'];
+  return managerRoles.includes(userRole);
+};
+
+// Lấy tên hiển thị của role
+export const getRoleDisplayName = (role) => {
+  const roleMap = {
+    'admin': 'Quản trị viên',
+    'Admin': 'Quản trị viên',
+    'manager': 'Quản lý',
+    'Manager': 'Quản lý',
+    'waiter': 'Phục vụ',
+    'Waiter': 'Phục vụ',
+    'cashier': 'Thu ngân',
+    'Cashier': 'Thu ngân',
+    'employee': 'Nhân viên',
+    'Employee': 'Nhân viên'
+  };
+  
+  return roleMap[role] || role;
+};

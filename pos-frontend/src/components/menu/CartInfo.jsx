@@ -1,8 +1,8 @@
-import React, { useRef, useEffect } from "react";
+import React, { useRef, useEffect, useState } from "react";
 import { useSelector, useDispatch } from "react-redux";
-import { removeItem, updateQuantity } from "../../redux/slices/cartSlice";
+import { removeItem, updateQuantity, updateItemNote } from "../../redux/slices/cartSlice";
 import { RiDeleteBin2Fill } from "react-icons/ri";
-import { FaNotesMedical, FaMinus, FaPlus } from "react-icons/fa";
+import { FaNotesMedical, FaMinus, FaPlus, FaStickyNote } from "react-icons/fa";
 
 const CartInfo = () => {
   const cartData = useSelector((state) => state.cart);
@@ -20,6 +20,10 @@ const CartInfo = () => {
   const handleQuantityChange = (id, currentQuantity, change) => {
     const newQuantity = currentQuantity + change;
     dispatch(updateQuantity({ id, quantity: newQuantity }));
+  };
+
+  const handleNoteChange = (id, note) => {
+    dispatch(updateItemNote({ id, note }));
   };
 
   return (
@@ -70,13 +74,25 @@ const CartInfo = () => {
                     >
                       <RiDeleteBin2Fill size={14} />
                     </button>
-                    <button className="text-[#ababab] hover:text-blue-400 transition-colors p-1">
-                      <FaNotesMedical size={14} />
-                    </button>
                   </div>
                   <p className="text-[#f5f5f5] text-xs lg:text-sm font-bold">
                     {item.price} Ft
                   </p>
+                </div>
+                
+                {/* Note input */}
+                <div className="mt-2">
+                  <div className="flex items-center gap-2 mb-1">
+                    <FaStickyNote className="text-[#ababab]" size={12} />
+                    <span className="text-[#ababab] text-xs">Note:</span>
+                  </div>
+                  <input
+                    type="text"
+                    placeholder="e.g: no spicy, less salt, no onion..."
+                    value={item.note || ''}
+                    onChange={(e) => handleNoteChange(item.id, e.target.value)}
+                    className="w-full bg-[#262626] border border-[#3a3a3a] rounded px-2 py-1 text-[#f5f5f5] text-xs placeholder-[#666] focus:outline-none focus:border-[#f6b100]"
+                  />
                 </div>
               </div>
             ))}

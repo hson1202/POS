@@ -60,9 +60,18 @@ const notifyOrderUpdate = (orderData) => {
   }
 };
 
+// Emit table status update
+const notifyTableUpdate = (tableData) => {
+  if (io) {
+    io.emit('table-updated', tableData);
+    console.log('Notified about table update:', tableData._id || tableData.tableNo);
+  }
+};
+
 module.exports = {
   initializeSocket,
   getIO,
   notifyKitchen,
-  notifyOrderUpdate
+  notifyOrderUpdate,
+  notifyTableUpdate
 };

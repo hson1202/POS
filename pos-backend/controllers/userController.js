@@ -61,16 +61,17 @@ const login = async (req, res, next) => {
             expiresIn : '1d'
         });
 
+        const isProduction = (process.env.NODE_ENV || 'development') === 'production';
         const cookieOptions = {
             maxAge: 1000 * 60 * 60 * 24 * 30, // 30 days
             httpOnly: true,
-            secure: process.env.NODE_ENV === 'production', // Secure in production
-            sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax', // Cross-site in production
+            secure: isProduction, // Secure in production
+            sameSite: isProduction ? 'none' : 'lax', // Cross-site in production
             path: '/'
         };
         
         console.log('🍪 Setting cookie with options:', cookieOptions);
-        res.cookie('accessToken', accessToken, cookieOptions)
+        res.cookie('accessToken', accessToken, cookieOptions);
 
         res.status(200).json({success: true, message: "User login successfully!", 
             data: {

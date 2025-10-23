@@ -36,7 +36,15 @@ const userSchema = new mongoose.Schema({
 
     role: {
         type: String,
-        required: true
+        required: true,
+        enum: ['admin', 'Admin', 'manager', 'Manager', 'waiter', 'Waiter', 'cashier', 'Cashier', 'employee', 'Employee'],
+        validate: {
+            validator: function(v) {
+                const validRoles = ['admin', 'Admin', 'manager', 'Manager', 'waiter', 'Waiter', 'cashier', 'Cashier', 'employee', 'Employee'];
+                return validRoles.includes(v);
+            },
+            message: 'Role must be one of: admin, manager, waiter, cashier, employee'
+        }
     }
 }, { timestamps : true })
 

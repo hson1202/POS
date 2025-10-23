@@ -6,85 +6,44 @@ import { addOrder, addOrderGuest, updateTable } from "../../https/index";
 import { removeAllItems } from "../../redux/slices/cartSlice";
 import { removeCustomer } from "../../redux/slices/customerSlice";
 import { useParams } from "react-router-dom";
+import { printCompactBill } from "../../utils/billTemplates";
 
 const PlaceOrderButton = ({ className = "", disabled = false }) => {
   const dispatch = useDispatch();
-  const { id: tableId } = useParams(); // From URL params (customer route)
+  const { id: tableIdFromParams } = useParams();
   
   const customerData = useSelector((state) => state.customer);
   const cartData = useSelector((state) => state.cart);
   
-  // Determine if this is admin order or customer order
-  const isCustomerOrder = !!tableId; // Customer routes have tableId in URL
-  const isAdminOrder = !tableId && customerData.table?.tableId; // Admin has table from Redux
+  // Get table ID from URL params (for /table/:id route) or from Redux (for /menu route)
+  const tableId = tableIdFromParams || customerData?.table?.tableId;
   
   const totalItems = cartData.reduce((total, item) => total + item.quantity, 0);
   const totalPrice = cartData.reduce((total, item) => total + item.price, 0);
 
-  // Compute backend table reference (ObjectId for admin, numeric for customer)
-  const backendTableRef = isCustomerOrder
-    ? tableId
-    : (isAdminOrder ? customerData.table.tableId : null);
-
-  // Compute display-friendly table number (numeric tableNo if available)
-  const displayTableNo = isCustomerOrder
-    ? tableId
-    : (isAdminOrder ? customerData.table.tableNo : null);
-
-  // Auto-print function for table orders
+  // Auto-print function for table orders using compact template
   const autoPrintReceipt = (orderData) => {
-    // Create print content
-    const printContent = `
-      <html>
-        <head>
-          <title>Order Receipt - Table ${orderData.tableNumber || displayTableNo || tableId}</title>
-          <style>
-            body { font-family: Arial, sans-serif; width: 80mm; margin: 0 auto; padding: 10px; }
-            h2 { text-align: center; margin: 10px 0; }
-            .divider { border-bottom: 1px dashed #000; margin: 10px 0; }
-            .item { display: flex; justify-content: space-between; margin: 5px 0; }
-            .total { font-weight: bold; font-size: 18px; margin-top: 10px; }
-            p { margin: 5px 0; }
-          </style>
-        </head>
-        <body>
-          <h2>ORDER RECEIPT</h2>
-          <p><strong>Table:</strong> ${orderData.tableNumber || displayTableNo || tableId}</p>
-          <p><strong>Customer:</strong> ${orderData.customerDetails?.name || 'Guest'}</p>
-          <p><strong>Date:</strong> ${new Date().toLocaleString('vi-VN')}</p>
-          <div class="divider"></div>
-          <h3>Items:</h3>
-          ${orderData.items.map(item => `
-            <div class="item">
-              <span>${item.name} x${item.quantity}</span>
-              <span>${new Intl.NumberFormat('hu-HU', { style: 'currency', currency: 'HUF' }).format(item.totalPrice || item.price)}</span>
-            </div>
-          `).join('')}
-          <div class="divider"></div>
-          <div class="item total">
-            <span>TOTAL:</span>
-            <span>${new Intl.NumberFormat('hu-HU', { style: 'currency', currency: 'HUF' }).format(orderData.totalAmount || totalPrice)}</span>
-          </div>
-          <div class="divider"></div>
-          <p style="text-align: center;">Thank you for your order!</p>
-          <p style="text-align: center; font-size: 12px;">Order #${orderData._id?.slice(-6) || 'NEW'}</p>
-        </body>
-      </html>
-    `;
-
-    // Open print window
-    const printWindow = window.open('', '_blank', 'width=300,height=600');
-    printWindow.document.write(printContent);
-    printWindow.document.close();
+    // Create order object in the format expected by printCompactBill
+    const order = {
+      _id: orderData._id,
+      customerDetails: orderData.customerDetails,
+      customerName: orderData.customerDetails?.name || 'Guest',
+      customerPhone: orderData.customerDetails?.phone,
+      tableNumber: orderData.tableNumber || tableId,
+      table: orderData.tableNumber || tableId,
+      items: orderData.items?.map(item => ({
+        name: item.name,
+        quantity: item.quantity,
+        price: item.pricePerQuantity,
+        total: item.totalPrice || item.price
+      })) || [],
+      totalAmount: orderData.totalAmount,
+      orderStatus: 'Pending',
+      createdAt: new Date().toISOString()
+    };
     
-    // Auto print after a short delay
-    setTimeout(() => {
-      printWindow.print();
-      // Close window after printing (optional)
-      setTimeout(() => {
-        printWindow.close();
-      }, 2000);
-    }, 500);
+    // Use compact print template for thermal printer
+    printCompactBill(order);
   };
 
   const handlePlaceOrder = async () => {
@@ -105,6 +64,7 @@ const PlaceOrderButton = ({ className = "", disabled = false }) => {
         tax: 0,
         totalWithTax: totalPrice,
       },
+      totalAmount: totalPrice, // Add totalAmount for socket notification
       items: cartData.map(item => ({
         menuItemId: item.id,
         name: item.name,
@@ -113,8 +73,11 @@ const PlaceOrderButton = ({ className = "", disabled = false }) => {
         price: item.pricePerQuantity,
         totalPrice: item.price
       })),
-      // Include table ID based on order type (backend reference)
-      table: backendTableRef,
+      // Include table if it's a valid table ID
+      ...(tableId && tableId !== "undefined" && tableId !== undefined && { 
+        table: tableId,
+        tableNumber: customerData?.table?.tableNo || tableId 
+      }),
     };
     
     orderMutation.mutate(orderData);
@@ -123,35 +86,31 @@ const PlaceOrderButton = ({ className = "", disabled = false }) => {
   const orderMutation = useMutation({
     mutationFn: (reqData) => {
       console.log('🍽️ Placing order:', {
-        type: isCustomerOrder ? 'Customer' : (isAdminOrder ? 'Admin' : 'Guest'),
         tableId: reqData.table,
         orderData: reqData
       });
       
-      // Use appropriate API based on order type
-      if (isCustomerOrder || isAdminOrder) {
-        return isCustomerOrder ? addOrderGuest(reqData) : addOrder(reqData);
-      } else {
-        // Guest order (walk-in, no table)
-        return addOrderGuest(reqData);
-      }
+      // Use addOrderGuest for all orders (simplified)
+      return addOrderGuest(reqData);
     },
-    onSuccess: (resData) => {
-      const { data } = resData.data;
+    onSuccess: async (resData) => {
+      const { data, isNewOrder, addedItems } = resData.data;
 
-      // Update Table if needed (for both customer and admin orders)
-      const finalTableId = backendTableRef;
-      if (finalTableId && finalTableId !== "undefined" && finalTableId !== "guest") {
+      // Note: Backend now auto-updates table status to "Occupied" when order is placed
+      // But we still try to update here as a fallback, in case backend fails
+      if (tableId && tableId !== "undefined" && tableId !== undefined && tableId !== "guest" && tableId !== "null") {
         try {
-          updateTable({ tableId: finalTableId, status: "Occupied" });
+          await updateTable({ tableId, status: "Occupied", orderId: data._id });
+          console.log("Table status updated to Occupied");
         } catch (error) {
-          console.log("Table update failed:", error);
+          console.log("Table update failed (backend should have handled it):", error);
+          // Don't show error to user since backend already updated it
         }
         
         // Auto-print receipt for table orders
         autoPrintReceipt({
           _id: data._id,
-          tableNumber: displayTableNo || tableId,
+          tableNumber: tableId,
           customerDetails: customerData,
           items: cartData,
           totalAmount: totalPrice
@@ -168,7 +127,18 @@ const PlaceOrderButton = ({ className = "", disabled = false }) => {
       dispatch(removeAllItems());
       dispatch(removeCustomer());
 
-      enqueueSnackbar("Order placed successfully!", { variant: "success" });
+      // Show different message based on new order or added items
+      if (isNewOrder) {
+        enqueueSnackbar("✅ Đặt món thành công! Đơn hàng đã được gửi tới bếp.", { 
+          variant: "success",
+          autoHideDuration: 4000 
+        });
+      } else {
+        enqueueSnackbar(`✅ Đã thêm ${addedItems?.length || 0} món vào đơn hàng!`, { 
+          variant: "success",
+          autoHideDuration: 4000 
+        });
+      }
     },
     onError: (error) => {
       console.log(error);
@@ -177,7 +147,7 @@ const PlaceOrderButton = ({ className = "", disabled = false }) => {
       if (error.response && error.response.data && error.response.data.message) {
         enqueueSnackbar(error.response.data.message, { variant: "error" });
       } else {
-        enqueueSnackbar("Failed to place order. Please try again.", { variant: "error" });
+        enqueueSnackbar("Đặt món thất bại. Vui lòng thử lại.", { variant: "error" });
       }
     },
   });

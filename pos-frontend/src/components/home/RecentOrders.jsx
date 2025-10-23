@@ -22,7 +22,7 @@ const RecentOrders = () => {
   const filteredOrders = useMemo(() => {
     if (!resData?.data.data) return [];
     
-    let orders = resData.data.data.filter(order => {
+    let orders = resData?.data?.data?.filter(order => {
       const searchLower = searchTerm.toLowerCase();
       
       // Search by customer name
@@ -35,7 +35,7 @@ const RecentOrders = () => {
       if (fullOrderId.includes(searchLower) || shortOrderId.includes(searchLower)) return true;
       
       // Search by table number
-      const tableNumber = typeof order.table === 'string' ? order.table : order.table?.tableNo;
+      const tableNumber = order.tableNumber || (typeof order.table === 'string' ? order.table : order.table?.tableNo);
       if (tableNumber && tableNumber.toString().includes(searchLower)) return true;
       
       // Search by phone number
@@ -75,7 +75,7 @@ const RecentOrders = () => {
   }, [resData?.data.data, searchTerm]);
 
   if (isError) {
-    enqueueSnackbar("Something went wrong!", { variant: "error" });
+    enqueueSnackbar("Đã xảy ra lỗi!", { variant: "error" });
   }
 
   return (
@@ -84,11 +84,11 @@ const RecentOrders = () => {
         <div className="flex justify-between items-center px-6 py-4">
           <div className="flex items-center gap-3">
             <h1 className="text-[#f5f5f5] text-lg font-semibold tracking-wide">
-              Recent Orders
+              Đơn hàng gần đây
             </h1>
           </div>
           <Link to="/orders" className="text-[#025cca] text-sm font-semibold hover:underline">
-            View all
+            Xem tất cả
           </Link>
         </div>
 
@@ -96,7 +96,7 @@ const RecentOrders = () => {
           <FaSearch className="text-[#f5f5f5]" />
           <input
             type="text"
-            placeholder="Search by name, order ID, table, phone, status..."
+            placeholder="Tìm theo tên, mã đơn, bàn, SĐT, trạng thái..."
             className="bg-[#1f1f1f] outline-none text-[#f5f5f5] flex-1"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
@@ -106,7 +106,7 @@ const RecentOrders = () => {
               onClick={() => setSearchTerm("")}
               className="text-[#ababab] hover:text-white text-sm"
             >
-              Clear
+              Xóa
             </button>
           )}
         </div>
@@ -115,7 +115,7 @@ const RecentOrders = () => {
         {searchTerm && (
           <div className="px-6 py-2">
             <p className="text-[#ababab] text-sm">
-              Found {filteredOrders.length} order{filteredOrders.length !== 1 ? 's' : ''} for "{searchTerm}"
+              Tìm thấy {filteredOrders.length} đơn cho "{searchTerm}"
             </p>
           </div>
         )}
@@ -128,16 +128,16 @@ const RecentOrders = () => {
             })
           ) : searchTerm ? (
             <div className="text-center py-8">
-              <p className="text-[#ababab] text-sm">No orders found for "{searchTerm}"</p>
+              <p className="text-[#ababab] text-sm">Không tìm thấy đơn cho "{searchTerm}"</p>
               <button 
                 onClick={() => setSearchTerm("")}
                 className="text-[#025cca] text-sm mt-2 hover:underline"
               >
-                Clear search
+                Xóa tìm kiếm
               </button>
             </div>
           ) : (
-            <p className="text-[#ababab] text-sm text-center py-8">No orders available</p>
+            <p className="text-[#ababab] text-sm text-center py-8">Chưa có đơn hàng</p>
           )}
         </div>
       </div>

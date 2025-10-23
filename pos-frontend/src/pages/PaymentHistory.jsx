@@ -89,8 +89,11 @@ const PaymentHistory = () => {
     return orders.find(order => order._id === orderId);
   };
 
-  const filteredPayments = payments.filter(payment => {
-    const order = getOrderInfo(payment.orderId);
+  const filteredPayments = payments
+    .slice()
+    .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+    .filter(payment => {
+    const order = getOrderInfo(payment.orderId) || payment.orderInfo;
     const matchesSearch = 
       payment.transactionId?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       order?.customerName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -249,7 +252,7 @@ const PaymentHistory = () => {
           {filteredPayments.length > 0 ? (
             <div className="divide-y divide-[#3a3a3a]">
               {filteredPayments.map((payment) => {
-                const order = getOrderInfo(payment.orderId);
+                const order = getOrderInfo(payment.orderId) || payment.orderInfo;
                 return (
                   <div key={payment._id} className="p-4 hover:bg-[#2a2a2a] transition-colors">
                     <div className="flex items-center justify-between">
@@ -267,7 +270,7 @@ const PaymentHistory = () => {
                             </span>
                           </div>
                           <p className="text-[#ababab] text-sm">
-                            {order ? `Bàn ${order.tableNumber} • ${order.customerName}` : 'Không có thông tin đơn hàng'}
+                            {order ? `Bàn ${order.tableNumber || 'N/A'} • ${order.customerName || 'Guest'}` : 'Không có thông tin đơn hàng'}
                           </p>
                           <p className="text-[#ababab] text-sm">
                             {getMethodLabel(payment.paymentMethod)} • {formatCurrency(payment.amount || 0)}

@@ -10,12 +10,12 @@ const ingredientSchema = new mongoose.Schema({
     category: { 
         type: String, 
         required: true,
-        enum: ['Meat', 'Vegetables', 'Spices', 'Grains', 'Seafood', 'Dairy & Eggs', 'Others']
+        trim: true
     },
     unit: { 
         type: String, 
         required: true,
-        enum: ['g', 'kg', 'ml', 'l', 'piece', 'bunch', 'pack', 'box']
+        trim: true
     },
     currentStock: { 
         type: Number, 
@@ -31,7 +31,8 @@ const ingredientSchema = new mongoose.Schema({
     },
     pricePerUnit: { 
         type: Number, 
-        required: true,
+        required: false,
+        default: 0,
         min: 0
     },
     supplier: { 

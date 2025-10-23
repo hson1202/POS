@@ -30,7 +30,7 @@ const getTables = async (req, res, next) => {
   try {
     const tables = await Table.find().populate({
       path: "currentOrder",
-      select: "customerDetails items bills orderStatus orderDate"
+      select: "customerDetails items bills orderStatus orderDate notes bookingTime reservationDateTime"
     });
     res.status(200).json({ success: true, data: tables });
   } catch (error) {
@@ -110,12 +110,13 @@ const updateTable = async (req, res, next) => {
       const Order = require("../models/orderModel");
       const newOrder = new Order({
         customerDetails: currentOrder.customerDetails,
-        orderStatus: "booked",
+        orderStatus: "Booked",
         bills: { total: 0, tax: 0, totalWithTax: 0 },
         items: [],
         table: tableId, // <-- dùng ObjectId
         notes: currentOrder.notes,
-        bookingTime: currentOrder.bookingTime
+        bookingTime: currentOrder.bookingTime,
+        reservationDateTime: currentOrder.reservationDateTime
       });
       const savedOrder = await newOrder.save();
       orderIdToUse = savedOrder._id;
@@ -128,7 +129,7 @@ const updateTable = async (req, res, next) => {
       { new: true }
     ).populate({
       path: "currentOrder",
-      select: "customerDetails items bills orderStatus orderDate notes bookingTime"
+      select: "customerDetails items bills orderStatus orderDate notes bookingTime reservationDateTime"
     });
 
     if (!table) {

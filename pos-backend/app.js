@@ -14,6 +14,18 @@ const PORT = config.port;
 connectDB();
 
 // Middlewares
+const allowedOrigins = [
+    'http://localhost:5173',
+    'http://localhost:5174', 
+    'http://localhost:5175',
+    'http://localhost:5176',
+    'http://localhost:5177',
+    'http://localhost:5178',
+    'http://localhost:5179',
+    'http://localhost:5180',
+    'https://pos-fe-ihui.onrender.com'
+];
+
 app.use(cors({
     credentials: true,
     origin: function (origin, callback) {
@@ -25,22 +37,19 @@ app.use(cors({
             return callback(null, true);
         }
         
-        // Allow all localhost ports from 5173 to 5180 (development)
-        if (origin.match(/^https?:\/\/localhost:(517[3-9]|5180)$/)) {
-            console.log('✅ CORS: Localhost allowed');
-            return callback(null, true);
-        }
-        
-        // Allow Render domains (production)
-        if (origin.match(/^https:\/\/.*\.onrender\.com$/)) {
-            console.log('✅ CORS: Render domain allowed');
+        if (allowedOrigins.includes(origin)) {
+            console.log('✅ CORS: Origin allowed:', origin);
             return callback(null, true);
         }
         
         console.log('❌ CORS: Origin not allowed:', origin);
         callback(new Error(`CORS: Origin ${origin} not allowed`));
-    }
-}))
+    },
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin'],
+    exposedHeaders: ['Set-Cookie'],
+    optionsSuccessStatus: 200
+}));
 app.use(express.json({ limit: '50mb' })); // parse incoming request in json format with increased limit
 app.use(express.urlencoded({ limit: '50mb', extended: true })); // parse URL-encoded bodies
 app.use(cookieParser())
@@ -81,6 +90,7 @@ app.use("/api/table", require("./routes/tableRoute"));
 app.use("/api/payment", require("./routes/paymentRoute"));
 app.use("/api/ingredients", require("./routes/ingredientRoute"));
 app.use("/api/menu-items", require("./routes/menuItemRoute"));
+app.use("/api/analytics", require("./routes/analyticsRoute"));
 
 // Global Error Handler
 app.use(globalErrorHandler);

@@ -15,7 +15,7 @@ const sampleIngredients = [
         unit: 'g',
         currentStock: 5000,
         minStock: 1000,
-        pricePerUnit: 0.2, // 200 Ft/gram
+        // pricePerUnit removed (not used for accounting here)
         supplier: 'Nhà cung cấp thịt ABC',
         description: 'Thịt bò tươi ngon'
     },
@@ -25,7 +25,6 @@ const sampleIngredients = [
         unit: 'g',
         currentStock: 10000,
         minStock: 2000,
-        pricePerUnit: 0.05, // 50 Ft/gram
         supplier: 'Nhà cung cấp mì XYZ',
         description: 'Mì sợi tươi'
     },
@@ -35,7 +34,6 @@ const sampleIngredients = [
         unit: 'g',
         currentStock: 2000,
         minStock: 500,
-        pricePerUnit: 0.03, // 30 Ft/gram
         supplier: 'Chợ rau quả',
         description: 'Hành lá tươi'
     },
@@ -45,7 +43,6 @@ const sampleIngredients = [
         unit: 'g',
         currentStock: 1500,
         minStock: 300,
-        pricePerUnit: 0.04, // 40 Ft/gram
         supplier: 'Chợ gia vị',
         description: 'Tỏi tươi'
     },
@@ -55,7 +52,6 @@ const sampleIngredients = [
         unit: 'ml',
         currentStock: 5000,
         minStock: 1000,
-        pricePerUnit: 0.002, // 2 Ft/ml
         supplier: 'Nhà cung cấp dầu ăn',
         description: 'Dầu ăn tinh luyện'
     },
@@ -65,7 +61,6 @@ const sampleIngredients = [
         unit: 'ml',
         currentStock: 3000,
         minStock: 500,
-        pricePerUnit: 0.01, // 10 Ft/ml
         supplier: 'Nhà cung cấp nước mắm',
         description: 'Nước mắm truyền thống'
     },
@@ -75,7 +70,6 @@ const sampleIngredients = [
         unit: 'g',
         currentStock: 8000,
         minStock: 2000,
-        pricePerUnit: 0.15, // 150 Ft/gram
         supplier: 'Trang trại gà',
         description: 'Thịt gà tươi'
     },
@@ -85,7 +79,6 @@ const sampleIngredients = [
         unit: 'g',
         currentStock: 3000,
         minStock: 800,
-        pricePerUnit: 0.02, // 20 Ft/gram
         supplier: 'Chợ rau quả',
         description: 'Cà chua tươi'
     },
@@ -95,7 +88,6 @@ const sampleIngredients = [
         unit: 'cái',
         currentStock: 200,
         minStock: 50,
-        pricePerUnit: 3, // 3000 Ft/quả
         supplier: 'Trang trại trứng',
         description: 'Trứng gà tươi'
     },
@@ -105,7 +97,6 @@ const sampleIngredients = [
         unit: 'ml',
         currentStock: 10000,
         minStock: 2000,
-        pricePerUnit: 0.008, // 8 Ft/ml
         supplier: 'Nhà cung cấp sữa',
         description: 'Sữa tươi nguyên chất'
     }

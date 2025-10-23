@@ -121,18 +121,22 @@ const EmployeeManagement = () => {
   };
 
   const getRoleColor = (role) => {
-    switch (role) {
+    switch (role?.toLowerCase()) {
       case 'admin': return 'text-red-400 bg-red-900/20';
       case 'manager': return 'text-blue-400 bg-blue-900/20';
+      case 'waiter': return 'text-purple-400 bg-purple-900/20';
+      case 'cashier': return 'text-yellow-400 bg-yellow-900/20';
       case 'employee': return 'text-green-400 bg-green-900/20';
       default: return 'text-gray-400 bg-gray-900/20';
     }
   };
 
   const getRoleLabel = (role) => {
-    switch (role) {
+    switch (role?.toLowerCase()) {
       case 'admin': return 'Admin';
       case 'manager': return 'Quản lý';
+      case 'waiter': return 'Phục vụ';
+      case 'cashier': return 'Thu ngân';
       case 'employee': return 'Nhân viên';
       default: return role;
     }
@@ -334,6 +338,8 @@ const EmployeeManagement = () => {
                   className="w-full bg-[#1f1f1f] border border-[#3a3a3a] rounded-lg px-4 py-3 text-white focus:outline-none focus:border-[#F6B100]"
                 >
                   <option value="employee">Nhân viên</option>
+                  <option value="waiter">Phục vụ</option>
+                  <option value="cashier">Thu ngân</option>
                   <option value="manager">Quản lý</option>
                   <option value="admin">Admin</option>
                 </select>

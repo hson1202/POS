@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { FaSearch, FaFilter, FaEye, FaPrint, FaCalendarAlt, FaTable, FaMoneyBillWave } from 'react-icons/fa';
 import { enqueueSnackbar } from 'notistack';
 import { axiosWrapper } from '../https/axiosWrapper';
+import { printBill, getBillTypeDescription } from '../utils/billTemplates';
 import BottomNav from '../components/shared/BottomNav';
 
 const OrderHistory = () => {
@@ -43,7 +44,9 @@ const OrderHistory = () => {
       case 'completed': return 'text-green-500 bg-green-900/20';
       case 'pending': return 'text-yellow-500 bg-yellow-900/20';
       case 'cancelled': return 'text-red-500 bg-red-900/20';
-      case 'preparing': return 'text-blue-500 bg-blue-900/20';
+      case 'preparing': 
+      case 'in progress': return 'text-blue-500 bg-blue-900/20';
+      case 'ready': return 'text-cyan-500 bg-cyan-900/20';
       default: return 'text-gray-500 bg-gray-900/20';
     }
   };
@@ -53,18 +56,33 @@ const OrderHistory = () => {
       case 'completed': return 'Hoàn thành';
       case 'pending': return 'Chờ xử lý';
       case 'cancelled': return 'Đã hủy';
-      case 'preparing': return 'Đang chuẩn bị';
+      case 'preparing': 
+      case 'in progress': return 'Đang chuẩn bị';
+      case 'ready': return 'Sẵn sàng';
       default: return status || 'N/A';
     }
   };
 
-  const filteredOrders = orders.filter(order => {
-    const matchesSearch = 
-      order.customerName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      order.customerPhone?.includes(searchTerm) ||
-      order.tableNumber?.toString().includes(searchTerm);
+  const filteredOrders = orders
+    .slice()
+    .sort((a, b) => {
+      const dateA = new Date(a.createdAt || a.orderDate || 0);
+      const dateB = new Date(b.createdAt || b.orderDate || 0);
+      return dateB - dateA; // newest first
+    })
+    .filter(order => {
+    // Get correct field values
+    const customerName = order.customerName || order.customerDetails?.name || 'Guest';
+    const customerPhone = order.customerPhone || order.customerDetails?.phone || '';
+    const tableNumber = order.tableNumber || order.table || '';
+    const orderStatus = order.orderStatus || order.status || 'pending';
     
-    const matchesStatus = statusFilter === 'all' || order.status?.toLowerCase() === statusFilter;
+    const matchesSearch = 
+      customerName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      customerPhone.includes(searchTerm) ||
+      tableNumber.toString().includes(searchTerm);
+    
+    const matchesStatus = statusFilter === 'all' || orderStatus.toLowerCase() === statusFilter;
     
     return matchesSearch && matchesStatus;
   });
@@ -75,63 +93,13 @@ const OrderHistory = () => {
   };
 
   const handlePrintOrder = (order) => {
-    // Implement print functionality
-    const printWindow = window.open('', '_blank');
-    printWindow.document.write(`
-      <html>
-        <head>
-          <title>Đơn hàng #${order._id}</title>
-          <style>
-            body { font-family: Arial, sans-serif; margin: 20px; }
-            .header { text-align: center; margin-bottom: 20px; }
-            .order-info { margin-bottom: 20px; }
-            .items { margin-bottom: 20px; }
-            .total { font-weight: bold; font-size: 18px; }
-            table { width: 100%; border-collapse: collapse; }
-            th, td { padding: 8px; text-align: left; border-bottom: 1px solid #ddd; }
-          </style>
-        </head>
-        <body>
-          <div class="header">
-            <h1>HÓA ĐƠN</h1>
-            <p>Đơn hàng #${order._id}</p>
-          </div>
-          <div class="order-info">
-            <p><strong>Bàn:</strong> ${order.tableNumber}</p>
-            <p><strong>Khách hàng:</strong> ${order.customerName}</p>
-            <p><strong>SĐT:</strong> ${order.customerPhone}</p>
-            <p><strong>Ngày:</strong> ${new Date(order.createdAt).toLocaleString()}</p>
-          </div>
-          <div class="items">
-            <table>
-              <thead>
-                <tr>
-                  <th>Tên món</th>
-                  <th>Số lượng</th>
-                  <th>Đơn giá</th>
-                  <th>Thành tiền</th>
-                </tr>
-              </thead>
-              <tbody>
-                ${order.items?.map(item => `
-                  <tr>
-                    <td>${item.name}</td>
-                    <td>${item.quantity}</td>
-                    <td>${formatCurrency(item.price)}</td>
-                    <td>${formatCurrency(item.total)}</td>
-                  </tr>
-                `).join('') || ''}
-              </tbody>
-            </table>
-          </div>
-          <div class="total">
-            <p>Tổng cộng: ${formatCurrency(order.totalAmount)}</p>
-          </div>
-        </body>
-      </html>
-    `);
-    printWindow.document.close();
-    printWindow.print();
+    try {
+      printBill(order, true); // Force full bill for order history
+      enqueueSnackbar("In hóa đơn thành công!", { variant: "success" });
+    } catch (error) {
+      console.error('Print error:', error);
+      enqueueSnackbar("Lỗi khi in hóa đơn!", { variant: "error" });
+    }
   };
 
   if (loading) {
@@ -182,7 +150,8 @@ const OrderHistory = () => {
             >
               <option value="all">Tất cả trạng thái</option>
               <option value="pending">Chờ xử lý</option>
-              <option value="preparing">Đang chuẩn bị</option>
+              <option value="in progress">Đang chuẩn bị</option>
+              <option value="ready">Sẵn sàng</option>
               <option value="completed">Hoàn thành</option>
               <option value="cancelled">Đã hủy</option>
             </select>
@@ -193,7 +162,15 @@ const OrderHistory = () => {
         <div className="bg-[#262626] rounded-lg border border-[#3a3a3a] overflow-hidden">
           {filteredOrders.length > 0 ? (
             <div className="divide-y divide-[#3a3a3a]">
-              {filteredOrders.map((order) => (
+              {filteredOrders.map((order) => {
+                // Get correct field values for display
+                const customerName = order.customerName || order.customerDetails?.name || 'Guest';
+                const customerPhone = order.customerPhone || order.customerDetails?.phone || 'N/A';
+                const tableNumber = order.tableNumber || order.table || 'N/A';
+                const orderStatus = order.orderStatus || order.status || 'pending';
+                const totalAmount = order.totalAmount || order.bills?.totalWithTax || order.bills?.total || 0;
+                
+                return (
                 <div key={order._id} className="p-4 hover:bg-[#2a2a2a] transition-colors">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-4">
@@ -202,16 +179,16 @@ const OrderHistory = () => {
                       </div>
                       <div>
                         <div className="flex items-center gap-3 mb-1">
-                          <p className="text-white font-medium">Bàn {order.tableNumber}</p>
-                          <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(order.status)}`}>
-                            {getStatusLabel(order.status)}
+                          <p className="text-white font-medium">Bàn {tableNumber}</p>
+                          <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(orderStatus)}`}>
+                            {getStatusLabel(orderStatus)}
                           </span>
                         </div>
                         <p className="text-[#ababab] text-sm">
-                          {order.customerName} • {order.customerPhone}
+                          {customerName} • {customerPhone}
                         </p>
                         <p className="text-[#ababab] text-sm">
-                          {order.items?.length || 0} món • {formatCurrency(order.totalAmount || 0)}
+                          {order.items?.length || 0} món • {formatCurrency(totalAmount)}
                         </p>
                         <p className="text-[#ababab] text-xs">
                           {new Date(order.createdAt).toLocaleString()}
@@ -237,7 +214,8 @@ const OrderHistory = () => {
                     </div>
                   </div>
                 </div>
-              ))}
+                );
+              })}
             </div>
           ) : (
             <div className="p-8 text-center">
@@ -253,7 +231,15 @@ const OrderHistory = () => {
         </div>
 
         {/* Order Detail Modal */}
-        {showOrderDetail && selectedOrder && (
+        {showOrderDetail && selectedOrder && (() => {
+          // Get correct field values for modal
+          const customerName = selectedOrder.customerName || selectedOrder.customerDetails?.name || 'Guest';
+          const customerPhone = selectedOrder.customerPhone || selectedOrder.customerDetails?.phone || 'N/A';
+          const tableNumber = selectedOrder.tableNumber || selectedOrder.table || 'N/A';
+          const orderStatus = selectedOrder.orderStatus || selectedOrder.status || 'pending';
+          const totalAmount = selectedOrder.totalAmount || selectedOrder.bills?.totalWithTax || selectedOrder.bills?.total || 0;
+          
+          return (
           <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
             <div className="bg-[#262626] rounded-lg p-6 w-full max-w-2xl max-h-[80vh] overflow-y-auto">
               <div className="flex items-center justify-between mb-4">
@@ -271,21 +257,21 @@ const OrderHistory = () => {
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <p className="text-[#ababab] text-sm">Số bàn</p>
-                    <p className="text-white font-medium">{selectedOrder.tableNumber}</p>
+                    <p className="text-white font-medium">{tableNumber}</p>
                   </div>
                   <div>
                     <p className="text-[#ababab] text-sm">Trạng thái</p>
-                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(selectedOrder.status)}`}>
-                      {getStatusLabel(selectedOrder.status)}
+                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(orderStatus)}`}>
+                      {getStatusLabel(orderStatus)}
                     </span>
                   </div>
                   <div>
                     <p className="text-[#ababab] text-sm">Khách hàng</p>
-                    <p className="text-white font-medium">{selectedOrder.customerName}</p>
+                    <p className="text-white font-medium">{customerName}</p>
                   </div>
                   <div>
                     <p className="text-[#ababab] text-sm">Số điện thoại</p>
-                    <p className="text-white font-medium">{selectedOrder.customerPhone}</p>
+                    <p className="text-white font-medium">{customerPhone}</p>
                   </div>
                   <div>
                     <p className="text-[#ababab] text-sm">Ngày tạo</p>
@@ -296,7 +282,7 @@ const OrderHistory = () => {
                   <div>
                     <p className="text-[#ababab] text-sm">Tổng tiền</p>
                     <p className="text-white font-medium text-lg text-[#F6B100]">
-                      {formatCurrency(selectedOrder.totalAmount || 0)}
+                      {formatCurrency(totalAmount)}
                     </p>
                   </div>
                 </div>
@@ -305,19 +291,25 @@ const OrderHistory = () => {
                 <div>
                   <h3 className="text-white font-medium mb-3">Danh sách món ăn</h3>
                   <div className="bg-[#1f1f1f] rounded-lg p-4">
-                    {selectedOrder.items?.map((item, index) => (
+                    {selectedOrder.items?.map((item, index) => {
+                      const itemPrice = item.price || item.unitPrice || 0;
+                      const itemQuantity = item.quantity || 1;
+                      const itemTotal = item.total || item.totalPrice || (itemPrice * itemQuantity);
+                      
+                      return (
                       <div key={index} className="flex justify-between items-center py-2 border-b border-[#3a3a3a] last:border-b-0">
                         <div>
                           <p className="text-white font-medium">{item.name}</p>
                           <p className="text-[#ababab] text-sm">
-                            {formatCurrency(item.price)} × {item.quantity}
+                            {formatCurrency(itemPrice)} × {itemQuantity}
                           </p>
                         </div>
                         <p className="text-white font-medium">
-                          {formatCurrency(item.total)}
+                          {formatCurrency(itemTotal)}
                         </p>
                       </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 </div>
 
@@ -340,7 +332,8 @@ const OrderHistory = () => {
               </div>
             </div>
           </div>
-        )}
+          );
+        })()}
       </div>
       <BottomNav />
     </div>

@@ -5,7 +5,11 @@ const StockTransaction = require('../models/stockTransactionModel');
 // Lấy tất cả món ăn
 const getAllMenuItems = async (req, res) => {
     try {
-        const menuItems = await MenuItem.find({ isAvailable: true })
+        // Allow query parameter to include all items (for admin management)
+        const { includeUnavailable } = req.query;
+        const filter = includeUnavailable === 'true' ? {} : { isAvailable: true };
+        
+        const menuItems = await MenuItem.find(filter)
             .populate('recipe.ingredient', 'name category unit currentStock')
             .sort({ category: 1, name: 1 });
         
@@ -86,18 +90,44 @@ const createMenuItem = async (req, res) => {
 const updateMenuItem = async (req, res) => {
     try {
         const { id } = req.params;
+        console.log('🔄 Updating menu item:', id);
+        console.log('📝 Update data:', JSON.stringify(req.body, null, 2));
+        
+        // Check if item exists first
+        const existingItem = await MenuItem.findById(id);
+        if (!existingItem) {
+            console.log('❌ Menu item not found:', id);
+            return res.status(404).json({
+                success: false,
+                message: 'Không tìm thấy món ăn'
+            });
+        }
+        
+        console.log('✅ Found existing item:', existingItem.name);
+        
+        // Check for duplicate itemCode if it's being changed
+        if (req.body.itemCode && req.body.itemCode !== existingItem.itemCode) {
+            const duplicateItem = await MenuItem.findOne({ 
+                itemCode: req.body.itemCode,
+                _id: { $ne: id }
+            });
+            
+            if (duplicateItem) {
+                console.log('❌ Duplicate itemCode found:', req.body.itemCode);
+                return res.status(400).json({
+                    success: false,
+                    message: `Mã món ăn "${req.body.itemCode}" đã tồn tại. Vui lòng chọn mã khác.`
+                });
+            }
+        }
+        
         const menuItem = await MenuItem.findByIdAndUpdate(
             id, 
             req.body, 
             { new: true, runValidators: true }
         ).populate('recipe.ingredient', 'name category unit currentStock');
         
-        if (!menuItem) {
-            return res.status(404).json({
-                success: false,
-                message: 'Không tìm thấy món ăn'
-            });
-        }
+        console.log('✅ Update successful:', menuItem.name, 'SKU:', menuItem.itemCode);
         
         res.status(200).json({
             success: true,
@@ -105,6 +135,28 @@ const updateMenuItem = async (req, res) => {
             data: menuItem
         });
     } catch (error) {
+        console.error('❌ Error updating menu item:', error);
+        console.error('Error name:', error.name);
+        console.error('Error code:', error.code);
+        
+        // Handle specific MongoDB errors
+        if (error.code === 11000) {
+            const field = Object.keys(error.keyPattern)[0];
+            return res.status(400).json({
+                success: false,
+                message: `${field === 'itemCode' ? 'Mã món ăn' : field} đã tồn tại. Vui lòng chọn giá trị khác.`
+            });
+        }
+        
+        if (error.name === 'ValidationError') {
+            const validationErrors = Object.values(error.errors).map(err => err.message);
+            return res.status(400).json({
+                success: false,
+                message: 'Dữ liệu không hợp lệ',
+                errors: validationErrors
+            });
+        }
+        
         res.status(500).json({
             success: false,
             message: 'Lỗi khi cập nhật món ăn',
@@ -239,8 +291,8 @@ const consumeIngredientsForMenuItem = async (req, res) => {
                 ingredient: ingredient._id,
                 type: 'OUT',
                 quantity: requiredQuantity,
-                unitPrice: ingredient.pricePerUnit,
-                totalAmount: requiredQuantity * ingredient.pricePerUnit,
+                unitPrice: 0,
+                totalAmount: 0,
                 reason: 'SALE',
                 reference: orderId || `Menu Item: ${menuItem.name}`,
                 notes: `Chế biến món: ${menuItem.name}`,

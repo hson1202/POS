@@ -10,7 +10,7 @@ const orderSchema = new mongoose.Schema({
         type: String,
         required: true,
         default: "Pending",
-        enum: ["Pending", "In Progress", "Ready", "Completed"]
+        enum: ["Pending", "In Progress", "Ready", "Completed", "Booked"]
     },
     orderDate: {
         type: Date,
@@ -21,10 +21,13 @@ const orderSchema = new mongoose.Schema({
         tax: { type: Number, required: true },
         totalWithTax: { type: Number, required: true }
     },
+    totalAmount: { type: Number }, // Total amount for easy access (can be same as bills.totalWithTax)
     items: [],
-    table: { type: String, required: true }, // Đổi thành String để accept tableId từ URL
+    table: { type: String }, // Optional - not all orders have table (guest orders, takeaway)
+    tableNumber: { type: String }, // Table number for display
     notes: String,
-    bookingTime: Date,
+    bookingTime: Date, // Thời gian tạo booking
+    reservationDateTime: Date, // Ngày giờ dự kiến khách đến
     paymentMethod: String,
     paymentData: {
         razorpay_order_id: String,

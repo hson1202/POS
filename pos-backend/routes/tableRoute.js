@@ -7,6 +7,6 @@ router.route("/").post(isVerifiedUser , addTable);
 router.route("/").get(isVerifiedUser , getTables);
 router.route("/:id").get(getTableById); // Không cần auth cho customer access
 router.route("/:id").put(updateTable); // Bỏ authentication cho update table
-router.route("/:id").delete(isVerifiedUser , deleteTable); // Thêm route xóa bàn
+router.route("/:id").delete(isVerifiedUser, deleteTable); // Delete table (admin only)
 
 module.exports = router;

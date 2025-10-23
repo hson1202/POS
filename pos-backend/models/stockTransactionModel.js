@@ -18,12 +18,14 @@ const stockTransactionSchema = new mongoose.Schema({
     },
     unitPrice: {
         type: Number,
-        required: true,
+        required: false,
+        default: 0,
         min: 0
     },
     totalAmount: {
         type: Number,
-        required: true,
+        required: false,
+        default: 0,
         min: 0
     },
     reason: {

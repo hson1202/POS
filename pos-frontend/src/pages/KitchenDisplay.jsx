@@ -1,17 +1,21 @@
 import React, { useState, useEffect } from 'react';
 import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
-import { FaClock, FaCheck, FaTimes, FaBell } from 'react-icons/fa';
+import { useSelector } from 'react-redux';
+import { FaClock, FaCheck, FaTimes, FaBell, FaPrint } from 'react-icons/fa';
 import { axiosWrapper } from '../https/axiosWrapper';
 import { updateOrderStatus } from '../https';
 import { enqueueSnackbar } from 'notistack';
-import { formatDateAndTime } from '../utils';
+import { formatDateAndTime, canUpdateOrderStatus } from '../utils';
 import { useSocket } from '../contexts/SocketContext';
+import { printBill, getBillTypeDescription } from '../utils/billTemplates';
 import BottomNav from '../components/shared/BottomNav';
 
 const KitchenDisplay = () => {
   const [selectedStatus, setSelectedStatus] = useState('all');
   const queryClient = useQueryClient();
   const { socket, isConnected } = useSocket();
+  const { role } = useSelector(state => state.user);
+  const canUpdate = canUpdateOrderStatus(role);
 
   useEffect(() => {
     document.title = "POS | Kitchen Display";
@@ -59,6 +63,17 @@ const KitchenDisplay = () => {
 
   const handleStatusUpdate = (orderId, newStatus) => {
     updateStatusMutation.mutate({ orderId, orderStatus: newStatus });
+  };
+
+  const handlePrintBill = (order) => {
+    try {
+      printBill(order);
+      const billType = getBillTypeDescription(order);
+      enqueueSnackbar(`${billType} thành công!`, { variant: "success" });
+    } catch (error) {
+      console.error('Print error:', error);
+      enqueueSnackbar("Lỗi khi in bill!", { variant: "error" });
+    }
   };
 
   // Filter orders based on selected status
@@ -203,33 +218,54 @@ const KitchenDisplay = () => {
                     ))}
                   </div>
 
-                  {/* Action Buttons */}
-                  <div className="flex gap-2">
-                    {order.orderStatus === 'Pending' && (
-                      <>
+                  {/* Action Buttons - Chỉ hiển thị cho nhân viên có quyền */}
+                  {canUpdate ? (
+                  <div className="space-y-2">
+                    <div className="flex gap-2">
+                      {order.orderStatus === 'Pending' && (
+                        <>
+                          <button
+                            onClick={() => handleStatusUpdate(order._id, 'In Progress')}
+                            disabled={updateStatusMutation.isPending}
+                            className="flex-1 bg-blue-500 text-white py-2 rounded-lg hover:bg-blue-600 transition-colors flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                          >
+                            <FaClock /> Start
+                          </button>
+                          <button
+                            onClick={() => handleStatusUpdate(order._id, 'Cancelled')}
+                            disabled={updateStatusMutation.isPending}
+                            className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                          >
+                            <FaTimes />
+                          </button>
+                        </>
+                      )}
+                      {order.orderStatus === 'In Progress' && (
                         <button
-                          onClick={() => handleStatusUpdate(order._id, 'In Progress')}
-                          className="flex-1 bg-blue-500 text-white py-2 rounded-lg hover:bg-blue-600 transition-colors flex items-center justify-center gap-2"
+                          onClick={() => handleStatusUpdate(order._id, 'Completed')}
+                          disabled={updateStatusMutation.isPending}
+                          className="flex-1 bg-green-500 text-white py-2 rounded-lg hover:bg-green-600 transition-colors flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                         >
-                          <FaClock /> Start
+                          <FaCheck /> Complete
                         </button>
-                        <button
-                          onClick={() => handleStatusUpdate(order._id, 'Cancelled')}
-                          className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors"
-                        >
-                          <FaTimes />
-                        </button>
-                      </>
-                    )}
-                    {order.orderStatus === 'In Progress' && (
-                      <button
-                        onClick={() => handleStatusUpdate(order._id, 'Completed')}
-                        className="flex-1 bg-green-500 text-white py-2 rounded-lg hover:bg-green-600 transition-colors flex items-center justify-center gap-2"
-                      >
-                        <FaCheck /> Complete
-                      </button>
-                    )}
+                      )}
+                    </div>
+                    
+                    {/* Print Button - Always available */}
+                    <button
+                      onClick={() => handlePrintBill(order)}
+                      className="w-full bg-purple-500 text-white py-2 rounded-lg hover:bg-purple-600 transition-colors flex items-center justify-center gap-2"
+                      title={getBillTypeDescription(order)}
+                    >
+                      <FaPrint />
+                      {order.orderStatus?.toLowerCase() === 'completed' ? 'In hóa đơn' : 'In phiếu bếp'}
+                    </button>
                   </div>
+                  ) : (
+                  <div className="bg-red-900 border border-red-500 rounded-lg p-3 text-center">
+                    <p className="text-red-300 text-sm">Không có quyền cập nhật trạng thái đơn hàng</p>
+                  </div>
+                  )}
                 </div>
               </div>
             ))}

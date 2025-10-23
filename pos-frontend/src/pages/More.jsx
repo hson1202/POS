@@ -1,13 +1,64 @@
-import React from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 import { FaBox, FaUtensils, FaChartBar, FaCog, FaUsers, FaFileAlt, FaClock, FaCreditCard } from 'react-icons/fa';
 import BottomNav from '../components/shared/BottomNav';
+import { axiosWrapper } from '../https/axiosWrapper';
 
 const More = () => {
   const navigate = useNavigate();
   const { role } = useSelector(state => state.user);
   const isAdmin = role === 'admin';
+  const [loading, setLoading] = useState(true);
+  const [stats, setStats] = useState({
+    totalMenuItems: 0,
+    totalIngredients: 0,
+    ordersToday: 0,
+    revenueToday: 0
+  });
+
+  const formatCurrency = (amount) => new Intl.NumberFormat('hu-HU', { style: 'currency', currency: 'HUF' }).format(amount || 0);
+
+  useEffect(() => {
+    const fetchStats = async () => {
+      try {
+        setLoading(true);
+        const [menuRes, ingRes, ordersRes, dashRes] = await Promise.all([
+          axiosWrapper.get('/api/menu-items'),
+          axiosWrapper.get('/api/ingredients'),
+          axiosWrapper.get('/api/order'),
+          axiosWrapper.get('/api/order/stats')
+        ]);
+
+        const menuItems = menuRes.data?.data || [];
+        const ingredients = ingRes.data?.data || [];
+        const orders = ordersRes.data?.data || [];
+        const dashboardStats = dashRes.data?.data || {};
+
+        // Orders today
+        const today = new Date();
+        today.setHours(0,0,0,0);
+        const tomorrow = new Date(today);
+        tomorrow.setDate(tomorrow.getDate() + 1);
+        const ordersToday = orders.filter(o => {
+          const d = new Date(o.createdAt);
+          return d >= today && d < tomorrow;
+        }).length;
+
+        setStats({
+          totalMenuItems: menuItems.length,
+          totalIngredients: ingredients.length,
+          ordersToday,
+          revenueToday: dashboardStats.dailyRevenue || 0
+        });
+      } catch (e) {
+        // fallback: keep defaults
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchStats();
+  }, []);
 
   const menuItems = [
     {
@@ -115,7 +166,7 @@ const More = () => {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-[#ababab] text-sm">Tổng món ăn</p>
-                  <p className="text-2xl font-bold text-white">24</p>
+                  <p className="text-2xl font-bold text-white">{stats.totalMenuItems}</p>
                 </div>
                 <div className="bg-green-600 p-3 rounded-lg">
                   <FaUtensils className="text-white" />
@@ -127,7 +178,7 @@ const More = () => {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-[#ababab] text-sm">Nguyên liệu</p>
-                  <p className="text-2xl font-bold text-white">156</p>
+                  <p className="text-2xl font-bold text-white">{stats.totalIngredients}</p>
                 </div>
                 <div className="bg-blue-600 p-3 rounded-lg">
                   <FaBox className="text-white" />
@@ -139,7 +190,7 @@ const More = () => {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-[#ababab] text-sm">Đơn hàng hôm nay</p>
-                  <p className="text-2xl font-bold text-white">12</p>
+                  <p className="text-2xl font-bold text-white">{stats.ordersToday}</p>
                 </div>
                 <div className="bg-purple-600 p-3 rounded-lg">
                   <FaChartBar className="text-white" />
@@ -151,7 +202,7 @@ const More = () => {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-[#ababab] text-sm">Doanh thu hôm nay</p>
-                  <p className="text-2xl font-bold text-white">2.4M</p>
+                  <p className="text-2xl font-bold text-white">{formatCurrency(stats.revenueToday)}</p>
                 </div>
                 <div className="bg-orange-600 p-3 rounded-lg">
                   <FaChartBar className="text-white" />
@@ -161,43 +212,6 @@ const More = () => {
           </div>
         </div>
 
-        {/* Recent Activity */}
-        <div className="mt-12">
-          <h2 className="text-2xl font-bold text-white mb-6">Hoạt động gần đây</h2>
-          <div className="bg-[#262626] rounded-lg p-6 border border-[#3a3a3a]">
-            <div className="space-y-4">
-              <div className="flex items-center gap-4 p-3 bg-[#1f1f1f] rounded-lg">
-                <div className="bg-green-600 p-2 rounded-lg">
-                  <FaUtensils className="text-white text-sm" />
-                </div>
-                <div className="flex-1">
-                  <p className="text-white font-medium">Thêm món ăn mới: Mì xào bò</p>
-                  <p className="text-[#ababab] text-sm">2 giờ trước</p>
-                </div>
-              </div>
-              
-              <div className="flex items-center gap-4 p-3 bg-[#1f1f1f] rounded-lg">
-                <div className="bg-blue-600 p-2 rounded-lg">
-                  <FaBox className="text-white text-sm" />
-                </div>
-                <div className="flex-1">
-                  <p className="text-white font-medium">Cập nhật tồn kho: Thịt bò +5kg</p>
-                  <p className="text-[#ababab] text-sm">4 giờ trước</p>
-                </div>
-              </div>
-              
-              <div className="flex items-center gap-4 p-3 bg-[#1f1f1f] rounded-lg">
-                <div className="bg-purple-600 p-2 rounded-lg">
-                  <FaChartBar className="text-white text-sm" />
-                </div>
-                <div className="flex-1">
-                  <p className="text-white font-medium">Đơn hàng mới: Bàn số 3</p>
-                  <p className="text-[#ababab] text-sm">6 giờ trước</p>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
       </div>
       <BottomNav />
     </div>

@@ -6,6 +6,10 @@ import { getAvatarName, formatDateAndTime, generateShortOrderId } from "../../ut
 const OrderList = ({ key, order }) => {
   // Xử lý table number - có thể là string (guest) hoặc object (admin)
   const getTableNumber = () => {
+    // Ưu tiên tableNumber (từ backend), sau đó fallback sang table
+    if (order.tableNumber) {
+      return order.tableNumber;
+    }
     if (typeof order.table === 'string') {
       return order.table; // Guest order - table là string như "1"
     }
