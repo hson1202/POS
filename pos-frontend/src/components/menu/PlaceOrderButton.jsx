@@ -5,18 +5,24 @@ import { enqueueSnackbar } from "notistack";
 import { addOrder, addOrderGuest, updateTable } from "../../https/index";
 import { removeAllItems } from "../../redux/slices/cartSlice";
 import { removeCustomer } from "../../redux/slices/customerSlice";
-import { useParams } from "react-router-dom";
+import { useParams, useLocation } from "react-router-dom";
 import { printCompactBill } from "../../utils/billTemplates";
 
 const PlaceOrderButton = ({ className = "", disabled = false }) => {
   const dispatch = useDispatch();
   const { id: tableIdFromParams } = useParams();
+  const location = useLocation();
   
   const customerData = useSelector((state) => state.customer);
   const cartData = useSelector((state) => state.cart);
+  const user = useSelector((state) => state.user);
   
   // Get table ID from URL params (for /table/:id route) or from Redux (for /menu route)
   const tableId = tableIdFromParams || customerData?.table?.tableId;
+  
+  // Check if this is a customer route (table menu) vs admin route
+  const isCustomerRoute = location.pathname.startsWith('/table/');
+  const isAuthenticated = user.isAuth;
   
   const totalItems = cartData.reduce((total, item) => total + item.quantity, 0);
   const totalPrice = cartData.reduce((total, item) => total + item.price, 0);
@@ -107,20 +113,23 @@ const PlaceOrderButton = ({ className = "", disabled = false }) => {
           // Don't show error to user since backend already updated it
         }
         
-        // Auto-print receipt for table orders
-        autoPrintReceipt({
-          _id: data._id,
-          tableNumber: tableId,
-          customerDetails: customerData,
-          items: cartData,
-          totalAmount: totalPrice
-        });
-        
-        // Play sound alert
-        const audio = new Audio('/audio/notification.mp3');
-        audio.play().catch(e => console.log('Audio play failed:', e));
-        
-        enqueueSnackbar("🖨️ Order sent to kitchen & printing receipt...", { variant: "info" });
+        // Only auto-print and play sound for authenticated admin/staff, NOT for customers
+        if (!isCustomerRoute && isAuthenticated) {
+          // Auto-print receipt for admin/staff orders
+          autoPrintReceipt({
+            _id: data._id,
+            tableNumber: tableId,
+            customerDetails: customerData,
+            items: cartData,
+            totalAmount: totalPrice
+          });
+          
+          // Play sound alert for admin/staff
+          const audio = new Audio('/audio/notification.mp3');
+          audio.play().catch(e => console.log('Audio play failed:', e));
+          
+          enqueueSnackbar("🖨️ Order sent to kitchen & printing receipt...", { variant: "info" });
+        }
       }
 
       // Clear cart and customer data
